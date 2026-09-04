@@ -221,7 +221,7 @@ import AppKit
 
     /// Renders the grid described by `state`.
     /// Only `state.renderedRowCount` rows are shown; everything else is hidden.
-    func updateGrid(_ state: GridCandidateState) {
+    func updateGrid(_ state: GridCandidateState, layout: CandidateLayout = .grid) {
         let theme = cachedTheme
         let numberAttrs = numberTextAttributes
         let renderedRows = state.renderedRowCount
@@ -254,13 +254,16 @@ import AppKit
                 let container = cells[rowIndex][col]
                 let isActiveRow = (gridRow == state.activeRow)
                 let isActive = isActiveRow && col == state.activeCol
+                let selectionLabel = layout == .vertical ? rowIndex + 1 : col + 1
+                let showNumber = layout == .vertical || isActiveRow
 
                 if state.hasLiteral, gridRow == 0, col == 0 {
                     renderLiteralCell(
                         container,
                         literalText: state.predictions.first,
                         isActive: isActive,
-                        isActiveRow: isActiveRow,
+                        showNumber: showNumber,
+                        selectionLabel: selectionLabel,
                         theme: theme,
                         numberAttrs: numberAttrs,
                     )
@@ -268,9 +271,9 @@ import AppKit
                     renderPredictionCell(
                         container,
                         text: state.predictions[predIdx],
-                        columnLabel: col + 1,
+                        selectionLabel: selectionLabel,
                         isActive: isActive,
-                        isActiveRow: isActiveRow,
+                        showNumber: showNumber,
                         theme: theme,
                         numberAttrs: numberAttrs,
                     )
@@ -291,7 +294,8 @@ import AppKit
         _ container: HighlightContainerView,
         literalText: String?,
         isActive: Bool,
-        isActiveRow: Bool,
+        showNumber: Bool,
+        selectionLabel: Int,
         theme: Theme,
         numberAttrs: [NSAttributedString.Key: Any],
     ) {
@@ -302,10 +306,10 @@ import AppKit
             .foregroundColor: theme.numberLabelColor,
         ]
 
-        let activeNumberAttrs = rowNumberAttrs(numberAttrs, isActiveRow: isActiveRow)
+        let activeNumberAttrs = rowNumberAttrs(numberAttrs, isActiveRow: showNumber)
 
         let attributed = NSMutableAttributedString()
-        attributed.append(NSAttributedString(string: "1 ", attributes: activeNumberAttrs))
+        attributed.append(NSAttributedString(string: "\(selectionLabel) ", attributes: activeNumberAttrs))
         attributed.append(NSAttributedString(string: "\u{201C}", attributes: quoteAttrs))
         attributed.append(NSAttributedString(string: text, attributes: [
             .font: wordFont,
@@ -322,17 +326,17 @@ import AppKit
     private func renderPredictionCell(
         _ container: HighlightContainerView,
         text: String,
-        columnLabel: Int,
+        selectionLabel: Int,
         isActive: Bool,
-        isActiveRow: Bool,
+        showNumber: Bool,
         theme: Theme,
         numberAttrs: [NSAttributedString.Key: Any],
     ) {
         let wordColor: NSColor = isActive ? theme.highlightTextColor : theme.normalTextColor
-        let activeNumberAttrs = rowNumberAttrs(numberAttrs, isActiveRow: isActiveRow)
+        let activeNumberAttrs = rowNumberAttrs(numberAttrs, isActiveRow: showNumber)
 
         let attributed = NSMutableAttributedString()
-        attributed.append(NSAttributedString(string: "\(columnLabel) ", attributes: activeNumberAttrs))
+        attributed.append(NSAttributedString(string: "\(selectionLabel) ", attributes: activeNumberAttrs))
         attributed.append(NSAttributedString(string: text, attributes: [
             .font: wordFont,
             .foregroundColor: wordColor,

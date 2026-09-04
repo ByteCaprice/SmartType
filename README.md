@@ -15,22 +15,19 @@
   >
 </div>
 
-A native macOS input method that predicts what you're typing — and what you'll type next. It shows a floating candidate bar below your cursor with word completions, spelling corrections, and next-word suggestions, all running locally with no network calls.
+A lightweight native macOS input method that helps complete and correct English words as you type. It shows a floating candidate bar below your cursor, using the system dictionary locally with no network calls.
 
-Built with Swift 6 and [InputMethodKit](https://developer.apple.com/documentation/inputmethodkit). Next-word predictions are powered by [KenLM](https://kheafield.com/code/kenlm/) n-gram language models, integrated through an Objective-C++ bridge.
+Built with Swift 6, [InputMethodKit](https://developer.apple.com/documentation/inputmethodkit), and macOS's native `NSSpellChecker`.
 
 ---
 
 ## ✨ Features
 
-- **Word completions & spell correction** as you type, powered by macOS's built-in spell checker
-- **Next-word predictions** after committing a word — chain predictions by pressing Space repeatedly
-- **Fully offline** — all predictions run locally using bundled language models, no data leaves your machine
-- **Expandable candidate grid** — starts as a single row, expands into a navigable multi-row grid with lazy loading
-- **Per-app input source switching** — automatically switch keyboard layouts when you focus different apps
+- **Up to five word completions and corrections** as you type, powered by macOS's built-in spell checker
+- **Fully offline** — suggestions use the system dictionary and no data leaves your machine
+- **Expandable candidate grid** — starts as a single row and expands when more candidates are available
 - **Themeable candidate window** — customize colors, opacity, grid size, and border through the Settings UI
-- **Menu bar integration** — shows the active language code; click to switch languages or open Settings
-- **Multiple languages** — English and German included, with a protocol-based architecture for adding more
+- **Menu bar integration** — shows `EN` and provides quick access to Settings
 
 ---
 
@@ -49,10 +46,10 @@ Download the latest `.pkg` from [Releases](../../releases) and double-click to i
 ### Build from source
 
 ```bash
-xcodebuild -scheme SwiftType -configuration Debug build
+./scripts/install.sh
 ```
 
-A Debug build automatically installs to `~/Library/Input Methods/`.
+The script completes an optimized Release build before replacing the copy in `~/Library/Input Methods/`. Regular builds and tests never modify the installed input method. Use `CONFIGURATION=Debug ./scripts/install.sh` only when debugging the installed process.
 
 ### Enable the input source
 
@@ -72,7 +69,7 @@ Switch to SwiftType, open any text field, and start typing. The candidate bar ap
 | Key | Action |
 |---|---|
 | `1`–`6` | Commit the prediction in that column |
-| `Space` | Commit selected prediction + show next-word suggestions |
+| `Space` | Commit selected prediction |
 | `Return` | Commit current selection |
 | `Escape` | Commit raw text and dismiss |
 
@@ -97,10 +94,7 @@ Open Settings from the menu bar icon.
 
 | Pane | What it does |
 |---|---|
-| **General** | Toggle next-word suggestions on/off |
-| **Keyboards** | Set up per-app input source switching — assign a keyboard layout to an app, and SwiftType switches automatically on focus |
-| **Languages** | Add, remove, or reorder prediction languages. Pin a language or set to Auto (follows the system keyboard) |
-| **Customization** | Adjust candidate bar appearance — 7 color options, opacity, column count (4–6), row count (3–5) |
+| **Appearance** | Adjust candidate bar colors, opacity, column count (4–6), and row count (3–5) |
 | **About** | Shows the installed version |
 
 Reset all settings: `defaults delete com.matthew.inputmethod.SwiftType`
@@ -115,47 +109,51 @@ Reset all settings: `defaults delete com.matthew.inputmethod.SwiftType`
 Keystroke
  → SpellCheckPredictor (macOS spell checker → corrections + completions)
  → CandidateWindow (floating grid below cursor)
-
-Word committed via Space
- → KenLMPredictor (n-gram model → top-N next words)
- → CandidateWindow (next-word mode, no literal slot)
 ```
 
 **SpellCheckPredictor** wraps `NSSpellChecker` to produce spelling corrections, prefix completions, and fuzzy guesses — all synchronous, no network calls.
-
-**KenLMPredictor** scores every word in its vocabulary against the recent typing context using a 5-gram language model, then applies truecasing to restore proper capitalization. The models are trained on 1 million news sentences from the [Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de/en/download/).
-
-### Truecasing
-
-Language models work best on lowercase text, but predictions need proper capitalization — especially for German, where all nouns are capitalized. SwiftType solves this by training on lowercased text for optimal statistics, then applying a separate truecase map at prediction time (`"haus"` → `"Haus"`, `"germany"` → `"Germany"`).
 
 ### Architecture
 
 ```
 macOS → IMKServer → InputController
-                        ├── KeyHandler        — language-specific key dispatch
-                        ├── InputStrategy     — prediction provider
-                        │   ├── SpellCheckPredictor  (completions)
-                        │   └── KenLMPredictor       (next-word, via C++ bridge)
-                        ├── TypingRules       — language-specific character sets
+                        ├── InputClientPolicy    — per-app mode: passthrough / inline / transparent prediction
+                        ├── LatinKeyHandler      — English key dispatch (inline mode)
+                        ├── InputControllerTransparentPrediction — mirrored-buffer predictions for Chromium/CEF apps
+                        ├── SpellCheckPredictor — local completions and corrections
+                        ├── EnglishTypingRules — punctuation and capitalization
                         └── CandidateWindow   — floating grid UI
 ```
 
-All three extension points — `KeyHandler`, `InputStrategy`, and `TypingRules` — are protocols. Adding a new language means writing conformers and registering them in `LanguageDescriptor`, with no changes to the core input controller.
+### Per-app compatibility
+
+SwiftType handles three kinds of text clients, selected automatically by `InputClientPolicy`:
+
+- **Inline** (default): marked-text preedit with candidates — native apps like TextEdit, Safari, Xcode.
+- **Passthrough**: every keystroke goes to the app untouched — terminals and VS Code, whose line editors fight inline preedit.
+- **Transparent prediction**: Chromium/CEF apps (Chrome, Edge, Brave, Vivaldi, Opera, WeCom/企业微信) defer Caps Lock input-source switching while marked text is active, so SwiftType keeps no composition there — letters land in the app directly and only the completion suffix is inserted when you pick a candidate.
+
+If a newly released app shows the same broken Caps Lock switching, enable transparent prediction for it without rebuilding:
+
+```bash
+defaults write com.matthew.inputmethod.SwiftType transparentPredictionBundleIdentifiers -array-add 'com.example.NewApp'
+```
+
+Caps Lock (中/英) switching to other input methods is supported system-wide via the input method's `TICapsLockLanguageSwitchCapable` capability.
 
 ### Concurrency
 
-The entire app is `@MainActor`-isolated under **Swift 6 strict concurrency** with zero warnings and zero `unsafe` annotations. InputMethodKit delivers all callbacks on the main thread, so rather than fighting that constraint, the codebase leans into it — proving thread safety to the compiler with no async/await and no background threads.
+Application state is `@MainActor`-isolated under **Swift 6 strict concurrency**. InputMethodKit delivers callbacks on the main thread; the controller verifies that boundary before accessing composition state, with no background prediction work or async tasks.
 
 ---
 
 ## 🧪 Tests
 
 ```bash
-xcodebuild -scheme SwiftTypeTests -configuration Debug test
+xcodebuild -scheme SwiftType -configuration Debug test
 ```
 
-**1,005 tests** covering input state, grid navigation, key routing, spell-check predictions, KenLM predictions, theme system, settings persistence, typing rules, language management, and candidate window behavior.
+The test suite covers input state, per-app client modes, transparent prediction, grid navigation, key routing, spell-check predictions, privacy-sensitive logging, the theme system, settings persistence, and candidate window behavior.
 
 ---
 
@@ -163,15 +161,13 @@ xcodebuild -scheme SwiftTypeTests -configuration Debug test
 
 ```
 SwiftType/
-├── App/            App delegate, managers, menu bar, input source switching
-├── Input/          Input controller, key handling, state, strategies
-├── Prediction/     SpellCheckPredictor, KenLMPredictor, Obj-C++ bridge
-├── Rules/          TypingRules protocol, language descriptors, English/German
-├── UI/             Candidate window, settings panes, theme system
-├── Tests/          1,005 tests across all subsystems
-├── Resources/      KenLM binary models + truecase maps (~164 MB)
-├── Frameworks/     kenlm.xcframework (static C++ libs)
-└── scripts/        KenLM model training, release packaging
+├── App/            App delegate, constants, logging, and menu bar
+├── Input/          Input controller, English key handling, and state
+├── Prediction/     Native spell-check and completion provider
+├── Rules/          English punctuation and capitalization rules
+├── UI/             Candidate window, appearance settings, and theme system
+├── Tests/          Unit tests across all subsystems
+└── scripts/        Release packaging
 ```
 
 ---
@@ -191,7 +187,7 @@ Produces `dist/SwiftType-<version>.pkg` — a flat installer that copies the app
 
 | Problem | Fix |
 |---|---|
-| SwiftType not in Input Sources | Rebuild to trigger auto-install, then check **System Settings → Keyboard** |
-| Old binary after rebuild | `killall SwiftType; touch ~/Library/Input\ Methods/` — or log out and back in |
+| SwiftType not in Input Sources | Run `./scripts/install.sh`, add SwiftType in **System Settings → Keyboard**, then log out and back in |
+| Old binary after rebuild | Run `./scripts/install.sh`, then log out and back in |
 | Duplicate entries | `sudo rm -rf /Library/Input\ Methods/SwiftType.app` then re-login |
 | Gatekeeper error | Right-click → Open, or run `xattr -dr com.apple.quarantine ~/Library/Input\ Methods/SwiftType.app` |

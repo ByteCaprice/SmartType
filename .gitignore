@@ -111,9 +111,6 @@ fabric.properties
 # https://plugins.jetbrains.com/plugin/8053-azure-toolkit-for-intellij
 .idea/**/azureSettings.xml
 
-### KenLM CLI tools (built by fetch_kenlm.sh) ###
-tools/kenlm/
-
 ### Python ###
 .venv/
 __pycache__/

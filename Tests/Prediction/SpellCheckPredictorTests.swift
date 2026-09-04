@@ -24,81 +24,60 @@ import XCTest
     func testCompletionsWithLimitZeroAlwaysReturnsEmpty() {
         // Arrange: any non-trivial context and partial.
         // Act: ask for 0 results.
-        let results = predictor.completions(context: "The quick brown ", prefix: "fo", limit: 0)
+        let results = predictor.completions(prefix: "fo", limit: 0)
         // Assert: regardless of spell-checker state, limit 0 must produce nothing.
         XCTAssertEqual(results.count, 0)
     }
 
     func testCompletionsResultCountNeverExceedsLimitOfOne() {
-        let results = predictor.completions(context: "", prefix: "hel", limit: 1)
+        let results = predictor.completions(prefix: "hel", limit: 1)
         XCTAssertLessThanOrEqual(results.count, 1)
     }
 
     func testCompletionsResultCountNeverExceedsLimitOfThree() {
         // "hel" as a prefix should give the spell-checker a good chance of returning > 3
         // words ("hello", "help", "helm", "held", …) so this limit test is meaningful.
-        let results = predictor.completions(context: "", prefix: "hel", limit: 3)
+        let results = predictor.completions(prefix: "hel", limit: 3)
         XCTAssertLessThanOrEqual(results.count, 3)
     }
 
     func testCompletionsResultCountNeverExceedsLargeLimit() {
         let limit = 100
-        let results = predictor.completions(context: "Yesterday I went to the ", prefix: "st", limit: limit)
+        let results = predictor.completions(prefix: "st", limit: limit)
         XCTAssertLessThanOrEqual(results.count, limit)
     }
 
     // MARK: - Crash safety on edge inputs
 
     func testCompletionsDoesNotCrashOnEmptyPartial() {
-        // An empty partial produces a zero-length range at the end of context — same
-        // geometry as nextWordPredictions.  The important thing is no crash.
+        // An empty partial produces a zero-length range at the end of context.
         XCTAssertNoThrow(
-            _ = predictor.completions(context: "some context ", prefix: "", limit: 5),
+            _ = predictor.completions(prefix: "", limit: 5),
         )
     }
 
     func testCompletionsDoesNotCrashOnEmptyContext() {
         XCTAssertNoThrow(
-            _ = predictor.completions(context: "", prefix: "wor", limit: 5),
+            _ = predictor.completions(prefix: "wor", limit: 5),
         )
     }
 
     func testCompletionsDoesNotCrashOnBothEmpty() {
         XCTAssertNoThrow(
-            _ = predictor.completions(context: "", prefix: "", limit: 5),
+            _ = predictor.completions(prefix: "", limit: 5),
         )
-    }
-
-    func testNextWordPredictionsDoesNotCrashOnEmptyContext() {
-        XCTAssertNoThrow(
-            _ = predictor.nextWordPredictions(context: "", limit: 5),
-        )
-    }
-
-    func testRefreshLanguageDoesNotCrash() {
-        // Smoke test: calling refreshLanguage() must never crash regardless of the
-        // current system spell-checker state.
-        XCTAssertNoThrow(predictor.refreshLanguage())
     }
 
     // MARK: - Result quality (best-effort; skipped when spell-checker is unavailable)
 
     func testCompletionsResultsAreAllNonEmptyStrings() {
-        let results = predictor.completions(context: "", prefix: "hel", limit: 7)
+        let results = predictor.completions(prefix: "hel", limit: 7)
         guard !results.isEmpty else {
             // Spell-checker returned nothing (non-English system or stripped dictionary).
             return
         }
         for word in results {
             XCTAssertFalse(word.isEmpty, "Completion result must not be an empty string")
-        }
-    }
-
-    func testNextWordPredictionsResultsAreAllNonEmptyStrings() {
-        let results = predictor.nextWordPredictions(context: "I love ", limit: 7)
-        guard !results.isEmpty else { return }
-        for word in results {
-            XCTAssertFalse(word.isEmpty, "Next-word prediction must not be an empty string")
         }
     }
 
@@ -114,7 +93,7 @@ import XCTest
     ///   "the" in English), the test skips gracefully.
     func testCompletionsNeverContainTheExactPartialWordCaseInsensitively() {
         let partial = "the"
-        let results = predictor.completions(context: "I went to ", prefix: partial, limit: 10)
+        let results = predictor.completions(prefix: partial, limit: 10)
         guard !results.isEmpty else { return }
         let lowercased = results.map { $0.lowercased() }
         XCTAssertFalse(lowercased.contains(partial),
@@ -124,7 +103,7 @@ import XCTest
     func testCompletionsNeverContainUppercasedVersionOfPartial() {
         // The exclusion is case-insensitive: partial "hello" → "Hello" must also be excluded.
         let partial = "hello"
-        let results = predictor.completions(context: "", prefix: partial, limit: 10)
+        let results = predictor.completions(prefix: partial, limit: 10)
         let lowercased = results.map { $0.lowercased() }
         XCTAssertFalse(lowercased.contains(partial),
                        "'hello' (in any case) must not appear in completions: \(results)")
@@ -134,7 +113,7 @@ import XCTest
 
     func testCompletionsContainNoDuplicateLowercasedWords() {
         // addUnique uses a Set<String> to prevent duplicate lowercased words.
-        let results = predictor.completions(context: "", prefix: "gr", limit: 7)
+        let results = predictor.completions(prefix: "gr", limit: 7)
         guard results.count > 1 else { return }
         let lowercased = results.map { $0.lowercased() }
         let unique = Set(lowercased)
@@ -142,30 +121,14 @@ import XCTest
                        "Completions must not contain duplicate words (case-insensitive): \(results)")
     }
 
-    func testNextWordPredictionsContainNoDuplicateLowercasedWords() {
-        let results = predictor.nextWordPredictions(context: "I am going to ", limit: 7)
-        guard results.count > 1 else { return }
-        let lowercased = results.map { $0.lowercased() }
-        let unique = Set(lowercased)
-        XCTAssertEqual(unique.count, lowercased.count,
-                       "Next-word predictions must not contain duplicates: \(results)")
-    }
-
     // MARK: - Multiple calls are stable
 
     func testRepeatedCompletionCallsProduceSameCount() {
         // The predictor is synchronous and stateless between calls (same tag, same language).
         // Calling twice with identical arguments must return the same result count.
-        let first = predictor.completions(context: "He walked to the ", prefix: "sto", limit: 5)
-        let second = predictor.completions(context: "He walked to the ", prefix: "sto", limit: 5)
+        let first = predictor.completions(prefix: "sto", limit: 5)
+        let second = predictor.completions(prefix: "sto", limit: 5)
         XCTAssertEqual(first.count, second.count)
-    }
-
-    func testRefreshLanguageFollowedByCompletionsDoesNotCrash() {
-        predictor.refreshLanguage()
-        XCTAssertNoThrow(
-            _ = predictor.completions(context: "", prefix: "wor", limit: 3),
-        )
     }
 
     // MARK: - Fuzzy-guess fallback branch (step 3)
@@ -181,13 +144,13 @@ import XCTest
         // A garbled partial with no real prefix has the best chance of bypassing
         // steps 1–2 and reaching the guesses branch.
         let limit = 2
-        let results = predictor.completions(context: "", prefix: "qkznrt", limit: limit)
+        let results = predictor.completions(prefix: "qkznrt", limit: limit)
         XCTAssertLessThanOrEqual(results.count, limit,
                                  "Fuzzy-guess branch must still respect the limit: \(results)")
     }
 
     func testFuzzyGuessBranchResultsAreNonEmptyStrings() {
-        let results = predictor.completions(context: "", prefix: "qkznrt", limit: 5)
+        let results = predictor.completions(prefix: "qkznrt", limit: 5)
         guard !results.isEmpty else { return } // Branch returned nothing — skip.
         for word in results {
             XCTAssertFalse(word.isEmpty, "Fuzzy-guess result must not be an empty string")
@@ -195,7 +158,7 @@ import XCTest
     }
 
     func testFuzzyGuessBranchResultsContainNoDuplicates() {
-        let results = predictor.completions(context: "", prefix: "qkznrt", limit: 7)
+        let results = predictor.completions(prefix: "qkznrt", limit: 7)
         guard results.count > 1 else { return }
         let lowercased = results.map { $0.lowercased() }
         XCTAssertEqual(Set(lowercased).count, lowercased.count,

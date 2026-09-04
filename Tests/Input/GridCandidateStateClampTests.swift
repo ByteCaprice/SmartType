@@ -1,9 +1,8 @@
 @testable import SwiftType
 import XCTest
 
-/// Tests for `GridCandidateState.clampVisibleWindow()`, `maxPredictionIndexNeeded(throughRow:)`,
-/// and `columnCountForRow(_:)` — geometry helpers that drive lazy loading and visible-window
-/// scrolling. These are pure value-type methods with no AppKit dependencies.
+/// Tests for `GridCandidateState.clampVisibleWindow()` and `columnCountForRow(_:)`.
+/// These are pure value-type methods with no AppKit dependencies.
 @MainActor final class GridCandidateStateClampTests: XCTestCase {
     // MARK: - Helpers
 
@@ -93,32 +92,6 @@ import XCTest
 
         // Assert: offset = 4 - 3 + 1 = 2
         XCTAssertEqual(s.visibleRowOffset, 2)
-    }
-
-    // MARK: - maxPredictionIndexNeeded
-
-    func testMaxPredictionIndexNeededRow0() {
-        let s = makeState(predictionCount: 10, columnCount: 5)
-        // Through row 0: (0+1)*5 - 1 = 4
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 0), 4)
-    }
-
-    func testMaxPredictionIndexNeededRow3() {
-        let s = makeState(predictionCount: 10, columnCount: 5)
-        // Through row 3: (3+1)*5 - 1 = 19
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 3), 19)
-    }
-
-    func testMaxPredictionIndexNeededC3() {
-        let s = makeState(predictionCount: 10, columnCount: 3)
-        // Through row 2: (2+1)*3 - 1 = 8
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 2), 8)
-    }
-
-    func testMaxPredictionIndexNeededC7() {
-        let s = makeState(predictionCount: 10, columnCount: 7)
-        // Through row 1: (1+1)*7 - 1 = 13
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 1), 13)
     }
 
     // MARK: - columnCountForRow

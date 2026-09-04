@@ -12,6 +12,7 @@ extension SettingsWindowController {
             stack.addArrangedSubview(makeColorRow(for: key))
         }
         stack.addArrangedSubview(makeHighlightOpacityRow())
+        stack.addArrangedSubview(makeCandidateLayoutRow())
         stack.addArrangedSubview(makeCandidateCountRow())
         stack.addArrangedSubview(makeGridRowsRow())
 
@@ -70,7 +71,19 @@ extension SettingsWindowController {
     private func makeCandidateCountRow() -> NSView {
         let index = ThemeManager.gridColsOptions.firstIndex(of: ThemeManager.shared.gridCols) ?? 2
         candidateCountPopUp = makePopUp(items: ThemeManager.gridColsOptions.map(String.init), selectedIndex: index, action: #selector(candidateCountChanged(_:)))
-        return makeSettingsRow(label: "Candidate Columns", control: candidateCountPopUp)
+        candidateCountPopUp.isEnabled = ThemeManager.shared.candidateLayout == .grid
+        return makeSettingsRow(label: "Grid Columns", control: candidateCountPopUp)
+    }
+
+    private func makeCandidateLayoutRow() -> NSView {
+        let layouts = CandidateLayout.allCases
+        let index = layouts.firstIndex(of: ThemeManager.shared.candidateLayout) ?? 0
+        candidateLayoutPopUp = makePopUp(
+            items: layouts.map(\.displayName),
+            selectedIndex: index,
+            action: #selector(candidateLayoutChanged(_:)),
+        )
+        return makeSettingsRow(label: "Candidate Layout", control: candidateLayoutPopUp)
     }
 
     private func makeGridRowsRow() -> NSView {
@@ -98,6 +111,14 @@ extension SettingsWindowController {
         ThemeManager.shared.setGridCols(options[sender.indexOfSelectedItem])
     }
 
+    @objc private func candidateLayoutChanged(_ sender: NSPopUpButton) {
+        let layouts = CandidateLayout.allCases
+        guard sender.indexOfSelectedItem < layouts.count else { return }
+        let layout = layouts[sender.indexOfSelectedItem]
+        ThemeManager.shared.setCandidateLayout(layout)
+        candidateCountPopUp?.isEnabled = layout == .grid
+    }
+
     @objc private func gridRowsChanged(_ sender: NSPopUpButton) {
         let options = ThemeManager.gridRowsOptions
         guard sender.indexOfSelectedItem < options.count else { return }
@@ -123,6 +144,10 @@ extension SettingsWindowController {
 
         let countIndex = ThemeManager.gridColsOptions.firstIndex(of: ThemeManager.shared.gridCols) ?? 2
         candidateCountPopUp?.selectItem(at: countIndex)
+
+        let layoutIndex = CandidateLayout.allCases.firstIndex(of: ThemeManager.shared.candidateLayout) ?? 0
+        candidateLayoutPopUp?.selectItem(at: layoutIndex)
+        candidateCountPopUp?.isEnabled = ThemeManager.shared.candidateLayout == .grid
 
         let rowsIndex = ThemeManager.gridRowsOptions.firstIndex(of: ThemeManager.shared.gridRows) ?? 0
         gridRowsPopUp?.selectItem(at: rowsIndex)

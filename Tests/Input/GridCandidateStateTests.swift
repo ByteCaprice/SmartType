@@ -167,38 +167,6 @@ import XCTest
         XCTAssertNil(s.predictionIndex(row: 1, col: 0)) // index 5 out of range
     }
 
-    // MARK: - maxPredictionIndexNeeded
-
-    func testMaxIndexNeededRow0WithLiteral() {
-        let s = makeState(predictions: [], hasLiteral: true)
-        // Unified formula: (0+1)*C - 1 = 4.
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 0), 4)
-    }
-
-    func testMaxIndexNeededRow1WithLiteral() {
-        let s = makeState(predictions: [], hasLiteral: true)
-        // (1+1)*5 - 1 = 9.
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 1), 9)
-    }
-
-    func testMaxIndexNeededRow4WithLiteral() {
-        let s = makeState(predictions: [], hasLiteral: true)
-        // (4+1)*5 - 1 = 24.
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 4), 24)
-    }
-
-    func testMaxIndexNeededRow0NoLiteral() {
-        let s = makeState(predictions: [], hasLiteral: false)
-        // (0+1)*C - 1 = 4.
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 0), 4)
-    }
-
-    func testMaxIndexNeededRow4NoLiteral() {
-        let s = makeState(predictions: [], hasLiteral: false)
-        // (4+1)*5 - 1 = 24.
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 4), 24)
-    }
-
     // MARK: - isLiteralSelected / selectedPrediction
 
     func testIsLiteralSelectedInitiallyTrueWithLiteral() {
@@ -517,18 +485,6 @@ import XCTest
         // Row 1, col 6, no literal, C=7 → index 13.
         let s = makeState(predictions: preds(14), hasLiteral: false, columnCount: 7)
         XCTAssertEqual(s.predictionIndex(row: 1, col: 6), 13)
-    }
-
-    func testMaxIndexNeededRow0C7NoLiteral() {
-        // (0+1)*7 - 1 = 6.
-        let s = makeState(predictions: [], hasLiteral: false, columnCount: 7)
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 0), 6)
-    }
-
-    func testMaxIndexNeededRow1C7WithLiteral() {
-        // Unified formula: (1+1)*7 - 1 = 13.
-        let s = makeState(predictions: [], hasLiteral: true, columnCount: 7)
-        XCTAssertEqual(s.maxPredictionIndexNeeded(throughRow: 1), 13)
     }
 
     // MARK: - predictionAt (active row convenience)

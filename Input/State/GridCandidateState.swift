@@ -27,7 +27,7 @@ struct GridCandidateState: Sendable {
     /// Maximum number of rows in the visible window; captured from user setting at show() time.
     let maxVisibleRows: Int
 
-    /// Flat display-capitalised prediction buffer; grows during lazy loading.
+    /// Flat display-capitalised prediction buffer.
     var predictions: [String]
 
     var activeRow: Int = 0
@@ -55,12 +55,6 @@ struct GridCandidateState: Sendable {
         if hasLiteral, row == 0, col == 0 { return nil } // literal slot
         let idx = row * columnCount + col
         return idx < predictions.count ? idx : nil
-    }
-
-    /// Maximum `predictions` index needed to render every cell in rows 0…r.
-    /// Used to determine whether a lazy-load fetch is required before navigating to row r.
-    func maxPredictionIndexNeeded(throughRow r: Int) -> Int {
-        (r + 1) * columnCount - 1
     }
 
     // MARK: - Selection

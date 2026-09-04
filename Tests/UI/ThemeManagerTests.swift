@@ -70,6 +70,18 @@ import XCTest
         XCTAssertEqual(manager.gridCols, ThemeManager.defaultGridCols)
     }
 
+    func testCandidateLayoutDefaultsToVertical() {
+        XCTAssertEqual(manager.candidateLayout, .vertical)
+    }
+
+    func testCandidateLayoutPersistsAndResets() {
+        manager.setCandidateLayout(.grid)
+        XCTAssertEqual(ThemeManager(defaults: defaults).candidateLayout, .grid)
+
+        manager.resetToDefaults()
+        XCTAssertEqual(manager.candidateLayout, .vertical)
+    }
+
     // MARK: - setColor / hexString
 
     func testSetAndReadColor() {

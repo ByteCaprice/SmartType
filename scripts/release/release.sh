@@ -42,11 +42,6 @@ for cmd in xcodebuild codesign pkgbuild; do
 done
 info "All required tools found."
 
-step "Checking kenlm.xcframework"
-KENLM_XCFW="${PROJECT_DIR}/Frameworks/kenlm.xcframework"
-[[ -d "$KENLM_XCFW" ]] || die "Frameworks/kenlm.xcframework not found. Run scripts/kenlm/fetch_kenlm.sh to build it."
-info "Found: ${KENLM_XCFW}"
-
 # ── Step 2: Clean old artifacts ───────────────────────────────────────────────
 step "Cleaning previous build artifacts"
 # A previous failed install may leave root-owned files; fix permissions first.
@@ -67,9 +62,11 @@ xcodebuild \
     CODE_SIGN_STYLE=Manual \
     CODE_SIGN_IDENTITY="-" \
     CONFIGURATION_BUILD_DIR="${BUILD_DIR}" \
+    CLANG_COVERAGE_MAPPING=NO \
+    CLANG_ENABLE_CODE_COVERAGE=NO \
+    ENABLE_CODE_COVERAGE=NO \
     ONLY_ACTIVE_ARCH=NO \
-    build \
-    2>&1 | grep -E "(error:|warning:|BUILD)" | head -60 || true
+    build
 
 # Confirm the .app was produced
 APP_PATH="${BUILD_DIR}/${APP_NAME}.app"
@@ -77,7 +74,7 @@ APP_PATH="${BUILD_DIR}/${APP_NAME}.app"
 info "Built: ${APP_PATH}"
 
 # ── Step 4: Stamp version into app bundle ────────────────────────────────────
-# The Xcode build phase sets a UTC timestamp; override it with the release version.
+# Override the project defaults with the release version.
 step "Setting version to ${VERSION}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "${APP_PATH}/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "${APP_PATH}/Contents/Info.plist"

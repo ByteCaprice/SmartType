@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		KL0000010000000000000004 /* kenlm.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = KL0000020000000000000005 /* kenlm.xcframework */; };
 		A10000010000000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000001 /* AppDelegate.swift */; };
 		A10000020000000000000002 /* NSManualApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000020000000000000002 /* NSManualApplication.swift */; };
 		A10000030000000000000003 /* InputController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000030000000000000003 /* InputController.swift */; };
@@ -19,103 +18,60 @@
 		A1000015000000000000000F /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000018000000000000000I /* Theme.swift */; };
 		A1000016000000000000000G /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000019000000000000000J /* ThemeManager.swift */; };
 		A1000017000000000000000H /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200001A000000000000000K /* StatusBarController.swift */; };
-		A1000018000000000000000I /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200001B000000000000000L /* SettingsManager.swift */; };
 		A1000019000000000000000J /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200001C000000000000000M /* SettingsWindowController.swift */; };
-		A100001A000000000000000K /* InputSourceSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200001D000000000000000N /* InputSourceSwitcher.swift */; };
-		A100001B000000000000000L /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A200001E000000000000000O /* Carbon.framework */; };
 		A100001C000000000000000M /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200001F000000000000000P /* Constants.swift */; };
 		A100001D000000000000000N /* NotificationNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000200000000000000010 /* NotificationNames.swift */; };
-		A100001E000000000000000O /* TISInputSource+Properties.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000210000000000000011 /* TISInputSource+Properties.swift */; };
 		A100001F000000000000000P /* KeyCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000220000000000000012 /* KeyCode.swift */; };
+		CP0000010000000000000001 /* InputClientPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CP0000020000000000000001 /* InputClientPolicy.swift */; };
+		CP0000010000000000000002 /* InputClientPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CP0000020000000000000002 /* InputClientPolicyTests.swift */; };
 		A10000200000000000000011 /* NSColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000230000000000000013 /* NSColorHex.swift */; };
-		TR0000010000000000000001 /* TypingRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR0000020000000000000001 /* TypingRules.swift */; };
 		ER0000010000000000000001 /* EnglishRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = ER0000020000000000000001 /* EnglishRules.swift */; };
-		GR0000010000000000000001 /* GermanRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = GR0000020000000000000001 /* GermanRules.swift */; };
-		LM0000010000000000000001 /* LanguageDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = LM0000020000000000000001 /* LanguageDescriptor.swift */; };
-		LM0000010000000000000002 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = LM0000020000000000000002 /* LanguageManager.swift */; };
 		LG0000010000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LG0000020000000000000001 /* Log.swift */; };
 		BB0000000000000000000016 /* KeyCodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000011 /* KeyCodeTests.swift */; };
 		BB0000000000000000000017 /* NSColorHexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000012 /* NSColorHexTests.swift */; };
-		BB0000000000000000000018 /* SettingsManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000013 /* SettingsManagerTests.swift */; };
 		BB0000000000000000000019 /* InputLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000014 /* InputLogicTests.swift */; };
 		BB0000000000000000000020 /* ThemeManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000015 /* ThemeManagerTests.swift */; };
 		BB0000000000000000000027 /* SpellCheckPredictorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000023 /* SpellCheckPredictorTests.swift */; };
-		BB0000000000000000000029 /* SettingsManagerExtendedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000025 /* SettingsManagerExtendedTests.swift */; };
 		BB000000000000000000002A /* KeyCodeExtendedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000026 /* KeyCodeExtendedTests.swift */; };
-		BB000000000000000000002F /* ContextTrimmingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000002B /* ContextTrimmingTests.swift */; };
 		BB0000000000000000000030 /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000002C /* ThemeTests.swift */; };
 		BB0000000000000000000031 /* CandidateWindowSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000002D /* CandidateWindowSelectionTests.swift */; };
-		CW0000020000000000000001 /* CandidateWindowGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0000010000000000000001 /* CandidateWindowGridTests.swift */; };
 		CW0000020000000000000002 /* CandidateWindowRowNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0000010000000000000002 /* CandidateWindowRowNavigationTests.swift */; };
-		LB0000010000000000000001 /* LanguageManagerBaseCodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = LB0000020000000000000001 /* LanguageManagerBaseCodeTests.swift */; };
 		BB0000000000000000000032 /* ThemeManagerExtendedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000002E /* ThemeManagerExtendedTests.swift */; };
-		LN0000010000000000000001 /* LanguageManagerNotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = LN0000020000000000000001 /* LanguageManagerNotificationTests.swift */; };
 		TE0000010000000000000001 /* ThemeManagerEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TE0000020000000000000001 /* ThemeManagerEdgeCaseTests.swift */; };
-		RE0000010000000000000001 /* TypingRulesEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RE0000020000000000000001 /* TypingRulesEdgeCaseTests.swift */; };
 		BB0000000000000000000022 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000021 /* XCTest.framework */; settings = {ATTRIBUTES = (Required, ); }; };
-		LM0000010000000000000003 /* LanguageManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = LM0000020000000000000003 /* LanguageManagerTests.swift */; };
-		TR0000010000000000000002 /* TypingRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR0000020000000000000002 /* TypingRulesTests.swift */; };
-		GR0000010000000000000002 /* GermanRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GR0000020000000000000002 /* GermanRulesTests.swift */; };
-		LD0000010000000000000001 /* LanguageDescriptorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = LD0000020000000000000001 /* LanguageDescriptorTests.swift */; };
 		IN0000010000000000000002 /* InputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = IN0000020000000000000002 /* InputState.swift */; };
-		IN0000010000000000000003 /* InputStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = IN0000020000000000000003 /* InputStrategy.swift */; };
+		CAPS00000000000000000001 /* InputControllerEventRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAPS00000000000000000002 /* InputControllerEventRoutingTests.swift */; };
 		IN0000010000000000000006 /* InputControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = IN0000020000000000000006 /* InputControllerTests.swift */; };
-		IS0000010000000000000001 /* InputStateContextAccumulationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = IS0000020000000000000001 /* InputStateContextAccumulationTests.swift */; };
 		GC0000010000000000000001 /* GridCandidateState.swift in Sources */ = {isa = PBXBuildFile; fileRef = GC0000020000000000000001 /* GridCandidateState.swift */; };
 		GC0000010000000000000002 /* GridCandidateStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GC0000020000000000000002 /* GridCandidateStateTests.swift */; };
-		SW0000010000000000000001 /* SettingsWindowControllerKeyboards.swift in Sources */ = {isa = PBXBuildFile; fileRef = SW0000020000000000000001 /* SettingsWindowControllerKeyboards.swift */; };
-		SW0000010000000000000002 /* SettingsWindowControllerLanguages.swift in Sources */ = {isa = PBXBuildFile; fileRef = SW0000020000000000000002 /* SettingsWindowControllerLanguages.swift */; };
 		SW0000010000000000000004 /* SettingsWindowControllerCustomization.swift in Sources */ = {isa = PBXBuildFile; fileRef = SW0000020000000000000004 /* SettingsWindowControllerCustomization.swift */; };
 		SW0000010000000000000005 /* SettingsWindowControllerAbout.swift in Sources */ = {isa = PBXBuildFile; fileRef = SW0000020000000000000005 /* SettingsWindowControllerAbout.swift */; };
-		SW0000010000000000000006 /* SettingsWindowControllerGeneral.swift in Sources */ = {isa = PBXBuildFile; fileRef = SW0000020000000000000006 /* SettingsWindowControllerGeneral.swift */; };
-		KL0000010000000000000001 /* KenLMBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = KL0000020000000000000002 /* KenLMBridge.mm */; };
-		KL0000010000000000000002 /* KenLMPredictor.swift in Sources */ = {isa = PBXBuildFile; fileRef = KL0000020000000000000003 /* KenLMPredictor.swift */; };
-		KL0000010000000000000003 /* KenLMPredictorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KL0000020000000000000004 /* KenLMPredictorTests.swift */; };
-		KL0000010000000000000005 /* KenLM in Resources */ = {isa = PBXBuildFile; fileRef = KL0000020000000000000006 /* KenLM */; };
-		LA0000010000000000000001 /* LatinInputStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000020000000000000001 /* LatinInputStrategy.swift */; };
 		IC0000010000000000000001 /* InputControllerLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = IC0000020000000000000001 /* InputControllerLifecycle.swift */; };
 		IC0000010000000000000002 /* InputControllerStateManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = IC0000020000000000000002 /* InputControllerStateManagement.swift */; };
 		IC0000010000000000000003 /* InputControllerPredictions.swift in Sources */ = {isa = PBXBuildFile; fileRef = IC0000020000000000000003 /* InputControllerPredictions.swift */; };
 		IC0000010000000000000004 /* InputControllerKeyHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = IC0000020000000000000004 /* InputControllerKeyHandling.swift */; };
 		IC0000010000000000000005 /* InputControllerComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = IC0000020000000000000005 /* InputControllerComposition.swift */; };
-		NT0000010000000000000001 /* LanguageDescriptorExtendedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000001 /* LanguageDescriptorExtendedTests.swift */; };
+		TP0000010000000000000001 /* InputControllerTransparentPrediction.swift in Sources */ = {isa = PBXBuildFile; fileRef = TP0000020000000000000001 /* InputControllerTransparentPrediction.swift */; };
+		TP0000010000000000000002 /* InputControllerTransparentPredictionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TP0000020000000000000002 /* InputControllerTransparentPredictionTests.swift */; };
 		NT0000010000000000000002 /* ConstantsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000002 /* ConstantsTests.swift */; };
+		PRIV00010000000000000001 /* PrivacyLoggingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRIV00020000000000000001 /* PrivacyLoggingTests.swift */; };
 		NT0000010000000000000003 /* GridCandidateStateNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000003 /* GridCandidateStateNavigationTests.swift */; };
-		NT0000010000000000000004 /* TypingRulesCapitalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000004 /* TypingRulesCapitalizationTests.swift */; };
-		NT0000010000000000000005 /* InputStateTrimContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000005 /* InputStateTrimContextTests.swift */; };
 		NT0000010000000000000006 /* ThemeManagerGridValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000006 /* ThemeManagerGridValidationTests.swift */; };
 		NT0000010000000000000007 /* ThemeBuildTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000007 /* ThemeBuildTests.swift */; };
-		NT0000010000000000000009 /* SettingsManagerMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000009 /* SettingsManagerMappingTests.swift */; };
-		NT0000010000000000000010 /* InputStateResetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000010 /* InputStateResetTests.swift */; };
 		NT0000010000000000000011 /* GridCandidateStatePredictionAtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000011 /* GridCandidateStatePredictionAtTests.swift */; };
-		NT0000010000000000000012 /* TypingRulesBoolPropertyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000012 /* TypingRulesBoolPropertyTests.swift */; };
-		NT0000010000000000000013 /* LanguageDescriptorStrategyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000013 /* LanguageDescriptorStrategyTests.swift */; };
 		NT0000010000000000000014 /* CandidateWindowUpdateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000014 /* CandidateWindowUpdateTests.swift */; };
-		NT0000010000000000000015 /* LanguageManagerSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000015 /* LanguageManagerSelectionTests.swift */; };
-		NT0000010000000000000016 /* TypingRulesOverlapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000016 /* TypingRulesOverlapTests.swift */; };
 		NT0000010000000000000017 /* ThemeManagerBorderColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000017 /* ThemeManagerBorderColorTests.swift */; };
-		NT0000010000000000000018 /* SettingsManagerUpdateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000018 /* SettingsManagerUpdateTests.swift */; };
 		NT0000010000000000000019 /* GridCandidateStateClampTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000019 /* GridCandidateStateClampTests.swift */; };
-		NT0000010000000000000020 /* TypingRulesApplyCapitalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000020 /* TypingRulesApplyCapitalizationTests.swift */; };
-		KH0000010000000000000001 /* KeyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = KH0000020000000000000001 /* KeyHandler.swift */; };
 		KH0000010000000000000002 /* LatinKeyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = KH0000020000000000000002 /* LatinKeyHandler.swift */; };
 		NF0000010000000000000001 /* LatinKeyHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000001 /* LatinKeyHandlerTests.swift */; };
-		NF0000010000000000000002 /* LatinInputStrategyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000002 /* LatinInputStrategyTests.swift */; };
 		NF0000010000000000000003 /* GridCandidateStateEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000003 /* GridCandidateStateEdgeCaseTests.swift */; };
-		NF0000010000000000000004 /* InputStateTrimContextEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000004 /* InputStateTrimContextEdgeCaseTests.swift */; };
-		NF0000010000000000000005 /* LanguageManagerEffectiveLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000005 /* LanguageManagerEffectiveLanguageTests.swift */; };
 		NF0000010000000000000006 /* NotificationNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000006 /* NotificationNameTests.swift */; };
-		NF0000010000000000000007 /* BaseLanguageCodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000007 /* BaseLanguageCodeTests.swift */; };
 		NF0000010000000000000008 /* ThemeManagerBuildThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000008 /* ThemeManagerBuildThemeTests.swift */; };
-		NF0000010000000000000009 /* TypingRulesContextCapitalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000009 /* TypingRulesContextCapitalizationTests.swift */; };
-		NF000001000000000000000A /* TypingRulesCharacterSetInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF000002000000000000000A /* TypingRulesCharacterSetInteractionTests.swift */; };
-		NF000001000000000000000B /* LanguageDescriptorFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF000002000000000000000B /* LanguageDescriptorFactoryTests.swift */; };
-		NF000001000000000000000C /* InputStateRulesInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF000002000000000000000C /* InputStateRulesInteractionTests.swift */; };
 		NF000001000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF000002000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift */; };
-		NF000001000000000000000E /* SettingsManagerIsEnabledTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF000002000000000000000E /* SettingsManagerIsEnabledTests.swift */; };
-		NF000001000000000000000F /* SettingsManagerNextWordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF000002000000000000000F /* SettingsManagerNextWordTests.swift */; };
 		NC0000010000000000000001 /* NotificationCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = NC0000020000000000000001 /* NotificationCounter.swift */; };
 		AC0000010000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AC0000020000000000000001 /* Assets.xcassets */; };
+		MI0000010000000000000001 /* SwiftTypeMenuIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = MI0000020000000000000001 /* SwiftTypeMenuIcon.png */; };
+		MI0000010000000000000002 /* SwiftTypeInputSourceIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = MI0000020000000000000002 /* SwiftTypeInputSourceIcon.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -143,107 +99,61 @@
 		A2000018000000000000000I /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		A2000019000000000000000J /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		A200001A000000000000000K /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
-		A200001B000000000000000L /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		A200001C000000000000000M /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
-		A200001D000000000000000N /* InputSourceSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSourceSwitcher.swift; sourceTree = "<group>"; };
-		A200001E000000000000000O /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		A200001F000000000000000P /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		A20000200000000000000010 /* NotificationNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationNames.swift; sourceTree = "<group>"; };
-		A20000210000000000000011 /* TISInputSource+Properties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TISInputSource+Properties.swift"; sourceTree = "<group>"; };
 		A20000220000000000000012 /* KeyCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCode.swift; sourceTree = "<group>"; };
+		CP0000020000000000000001 /* InputClientPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputClientPolicy.swift; sourceTree = "<group>"; };
+		CP0000020000000000000002 /* InputClientPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputClientPolicyTests.swift; sourceTree = "<group>"; };
 		A20000230000000000000013 /* NSColorHex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSColorHex.swift; sourceTree = "<group>"; };
-		TR0000020000000000000001 /* TypingRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRules.swift; sourceTree = "<group>"; };
 		ER0000020000000000000001 /* EnglishRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnglishRules.swift; sourceTree = "<group>"; };
-		GR0000020000000000000001 /* GermanRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GermanRules.swift; sourceTree = "<group>"; };
-		LM0000020000000000000001 /* LanguageDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageDescriptor.swift; sourceTree = "<group>"; };
-		LM0000020000000000000002 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
 		LG0000020000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		BB0000000000000000000001 /* SwiftTypeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftTypeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB0000000000000000000011 /* KeyCodeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCodeTests.swift; sourceTree = "<group>"; };
 		BB0000000000000000000012 /* NSColorHexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSColorHexTests.swift"; sourceTree = "<group>"; };
-		BB0000000000000000000013 /* SettingsManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManagerTests.swift; sourceTree = "<group>"; };
 		BB0000000000000000000014 /* InputLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputLogicTests.swift; sourceTree = "<group>"; };
 		BB0000000000000000000015 /* ThemeManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerTests.swift; sourceTree = "<group>"; };
 		BB0000000000000000000023 /* SpellCheckPredictorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellCheckPredictorTests.swift; sourceTree = "<group>"; };
-		BB0000000000000000000025 /* SettingsManagerExtendedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManagerExtendedTests.swift; sourceTree = "<group>"; };
 		BB0000000000000000000026 /* KeyCodeExtendedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCodeExtendedTests.swift; sourceTree = "<group>"; };
-		BB000000000000000000002B /* ContextTrimmingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextTrimmingTests.swift; sourceTree = "<group>"; };
 		BB000000000000000000002C /* ThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTests.swift; sourceTree = "<group>"; };
 		BB000000000000000000002D /* CandidateWindowSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateWindowSelectionTests.swift; sourceTree = "<group>"; };
-		CW0000010000000000000001 /* CandidateWindowGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateWindowGridTests.swift; sourceTree = "<group>"; };
 		CW0000010000000000000002 /* CandidateWindowRowNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateWindowRowNavigationTests.swift; sourceTree = "<group>"; };
-		LB0000020000000000000001 /* LanguageManagerBaseCodeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManagerBaseCodeTests.swift; sourceTree = "<group>"; };
 		BB000000000000000000002E /* ThemeManagerExtendedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerExtendedTests.swift; sourceTree = "<group>"; };
 		BB0000000000000000000021 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
-		LM0000020000000000000003 /* LanguageManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManagerTests.swift; sourceTree = "<group>"; };
-		TR0000020000000000000002 /* TypingRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesTests.swift; sourceTree = "<group>"; };
-		GR0000020000000000000002 /* GermanRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GermanRulesTests.swift; sourceTree = "<group>"; };
-		LD0000020000000000000001 /* LanguageDescriptorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageDescriptorTests.swift; sourceTree = "<group>"; };
 		IN0000020000000000000002 /* InputState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputState.swift; sourceTree = "<group>"; };
-		IN0000020000000000000003 /* InputStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputStrategy.swift; sourceTree = "<group>"; };
+		CAPS00000000000000000002 /* InputControllerEventRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerEventRoutingTests.swift; sourceTree = "<group>"; };
 		IN0000020000000000000006 /* InputControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerTests.swift; sourceTree = "<group>"; };
-		IS0000020000000000000001 /* InputStateContextAccumulationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputStateContextAccumulationTests.swift; sourceTree = "<group>"; };
 		GC0000020000000000000001 /* GridCandidateState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateState.swift; sourceTree = "<group>"; };
 		GC0000020000000000000002 /* GridCandidateStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStateTests.swift; sourceTree = "<group>"; };
-		LN0000020000000000000001 /* LanguageManagerNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManagerNotificationTests.swift; sourceTree = "<group>"; };
 		TE0000020000000000000001 /* ThemeManagerEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerEdgeCaseTests.swift; sourceTree = "<group>"; };
-		RE0000020000000000000001 /* TypingRulesEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesEdgeCaseTests.swift; sourceTree = "<group>"; };
-		SW0000020000000000000001 /* SettingsWindowControllerKeyboards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerKeyboards.swift; sourceTree = "<group>"; };
-		SW0000020000000000000002 /* SettingsWindowControllerLanguages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerLanguages.swift; sourceTree = "<group>"; };
 		SW0000020000000000000004 /* SettingsWindowControllerCustomization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerCustomization.swift; sourceTree = "<group>"; };
 		SW0000020000000000000005 /* SettingsWindowControllerAbout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerAbout.swift; sourceTree = "<group>"; };
-		SW0000020000000000000006 /* SettingsWindowControllerGeneral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerGeneral.swift; sourceTree = "<group>"; };
-		KL0000020000000000000006 /* KenLM */ = {isa = PBXFileReference; lastKnownFileType = folder; name = KenLM; path = KenLM; sourceTree = "<group>"; };
-		KL0000020000000000000001 /* KenLMBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KenLMBridge.h; sourceTree = "<group>"; };
-		KL0000020000000000000002 /* KenLMBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = KenLMBridge.mm; sourceTree = "<group>"; };
-		KL0000020000000000000003 /* KenLMPredictor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KenLMPredictor.swift; sourceTree = "<group>"; };
-		KL0000020000000000000004 /* KenLMPredictorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KenLMPredictorTests.swift; sourceTree = "<group>"; };
-		BH0000020000000000000001 /* SwiftType-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SwiftType-Bridging-Header.h"; sourceTree = "<group>"; };
-		LA0000020000000000000001 /* LatinInputStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatinInputStrategy.swift; sourceTree = "<group>"; };
 		IC0000020000000000000001 /* InputControllerLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerLifecycle.swift; sourceTree = "<group>"; };
 		IC0000020000000000000002 /* InputControllerStateManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerStateManagement.swift; sourceTree = "<group>"; };
 		IC0000020000000000000003 /* InputControllerPredictions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerPredictions.swift; sourceTree = "<group>"; };
 		IC0000020000000000000004 /* InputControllerKeyHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerKeyHandling.swift; sourceTree = "<group>"; };
 		IC0000020000000000000005 /* InputControllerComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerComposition.swift; sourceTree = "<group>"; };
-		KL0000020000000000000005 /* kenlm.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Frameworks/kenlm.xcframework; sourceTree = "<group>"; };
-		NT0000020000000000000001 /* LanguageDescriptorExtendedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageDescriptorExtendedTests.swift; sourceTree = "<group>"; };
+		TP0000020000000000000001 /* InputControllerTransparentPrediction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerTransparentPrediction.swift; sourceTree = "<group>"; };
+		TP0000020000000000000002 /* InputControllerTransparentPredictionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerTransparentPredictionTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000002 /* ConstantsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConstantsTests.swift; sourceTree = "<group>"; };
+		PRIV00020000000000000001 /* PrivacyLoggingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyLoggingTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000003 /* GridCandidateStateNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStateNavigationTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000004 /* TypingRulesCapitalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesCapitalizationTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000005 /* InputStateTrimContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputStateTrimContextTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000006 /* ThemeManagerGridValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerGridValidationTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000007 /* ThemeBuildTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeBuildTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000009 /* SettingsManagerMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManagerMappingTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000010 /* InputStateResetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputStateResetTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000011 /* GridCandidateStatePredictionAtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStatePredictionAtTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000012 /* TypingRulesBoolPropertyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesBoolPropertyTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000013 /* LanguageDescriptorStrategyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageDescriptorStrategyTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000014 /* CandidateWindowUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateWindowUpdateTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000015 /* LanguageManagerSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManagerSelectionTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000016 /* TypingRulesOverlapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesOverlapTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000017 /* ThemeManagerBorderColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerBorderColorTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000018 /* SettingsManagerUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManagerUpdateTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000019 /* GridCandidateStateClampTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStateClampTests.swift; sourceTree = "<group>"; };
-		NT0000020000000000000020 /* TypingRulesApplyCapitalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesApplyCapitalizationTests.swift; sourceTree = "<group>"; };
-		KH0000020000000000000001 /* KeyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHandler.swift; sourceTree = "<group>"; };
 		KH0000020000000000000002 /* LatinKeyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatinKeyHandler.swift; sourceTree = "<group>"; };
 		NF0000020000000000000001 /* LatinKeyHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatinKeyHandlerTests.swift; sourceTree = "<group>"; };
-		NF0000020000000000000002 /* LatinInputStrategyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatinInputStrategyTests.swift; sourceTree = "<group>"; };
 		NF0000020000000000000003 /* GridCandidateStateEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStateEdgeCaseTests.swift; sourceTree = "<group>"; };
-		NF0000020000000000000004 /* InputStateTrimContextEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputStateTrimContextEdgeCaseTests.swift; sourceTree = "<group>"; };
-		NF0000020000000000000005 /* LanguageManagerEffectiveLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManagerEffectiveLanguageTests.swift; sourceTree = "<group>"; };
 		NF0000020000000000000006 /* NotificationNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationNameTests.swift; sourceTree = "<group>"; };
-		NF0000020000000000000007 /* BaseLanguageCodeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseLanguageCodeTests.swift; sourceTree = "<group>"; };
 		NF0000020000000000000008 /* ThemeManagerBuildThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerBuildThemeTests.swift; sourceTree = "<group>"; };
-		NF0000020000000000000009 /* TypingRulesContextCapitalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesContextCapitalizationTests.swift; sourceTree = "<group>"; };
-		NF000002000000000000000A /* TypingRulesCharacterSetInteractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingRulesCharacterSetInteractionTests.swift; sourceTree = "<group>"; };
-		NF000002000000000000000B /* LanguageDescriptorFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageDescriptorFactoryTests.swift; sourceTree = "<group>"; };
-		NF000002000000000000000C /* InputStateRulesInteractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputStateRulesInteractionTests.swift; sourceTree = "<group>"; };
 		NF000002000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellCheckPredictorEdgeCaseTests.swift; sourceTree = "<group>"; };
-		NF000002000000000000000E /* SettingsManagerIsEnabledTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManagerIsEnabledTests.swift; sourceTree = "<group>"; };
-		NF000002000000000000000F /* SettingsManagerNextWordTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManagerNextWordTests.swift; sourceTree = "<group>"; };
 		NC0000020000000000000001 /* NotificationCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCounter.swift; sourceTree = "<group>"; };
 		AC0000020000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		MI0000020000000000000001 /* SwiftTypeMenuIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Resources/SwiftTypeMenuIcon.png; sourceTree = "<group>"; };
+		MI0000020000000000000002 /* SwiftTypeInputSourceIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Resources/SwiftTypeInputSourceIcon.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -252,8 +162,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000012000000000000000C /* InputMethodKit.framework in Frameworks */,
-				A100001B000000000000000L /* Carbon.framework in Frameworks */,
-				KL0000010000000000000004 /* kenlm.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -297,9 +205,9 @@
 				A40000050000000000000005 /* Prediction */,
 				RU00000A0000000000000001 /* Rules */,
 				A40000060000000000000006 /* UI */,
-				A40000070000000000000007 /* Resources */,
-				BH0000020000000000000001 /* SwiftType-Bridging-Header.h */,
 				AC0000020000000000000001 /* Assets.xcassets */,
+				MI0000020000000000000001 /* SwiftTypeMenuIcon.png */,
+				MI0000020000000000000002 /* SwiftTypeInputSourceIcon.png */,
 				A2000013000000000000000D /* Info.plist */,
 				A2000014000000000000000E /* SwiftType.entitlements */,
 			);
@@ -308,8 +216,6 @@
 		RU00000A0000000000000001 /* Rules */ = {
 			isa = PBXGroup;
 			children = (
-				TR0000020000000000000001 /* TypingRules.swift */,
-				LM0000020000000000000001 /* LanguageDescriptor.swift */,
 				RC0000000000000000000001 /* Conformers */,
 			);
 			path = Rules;
@@ -319,7 +225,6 @@
 			isa = PBXGroup;
 			children = (
 				ER0000020000000000000001 /* EnglishRules.swift */,
-				GR0000020000000000000001 /* GermanRules.swift */,
 			);
 			path = Conformers;
 			sourceTree = "<group>";
@@ -329,14 +234,10 @@
 			children = (
 				A20000010000000000000001 /* AppDelegate.swift */,
 				A200001F000000000000000P /* Constants.swift */,
-				A200001D000000000000000N /* InputSourceSwitcher.swift */,
-				LM0000020000000000000002 /* LanguageManager.swift */,
 				LG0000020000000000000001 /* Log.swift */,
 				A20000020000000000000002 /* NSManualApplication.swift */,
 				A20000200000000000000010 /* NotificationNames.swift */,
-				A200001B000000000000000L /* SettingsManager.swift */,
 				A200001A000000000000000K /* StatusBarController.swift */,
-				A20000210000000000000011 /* TISInputSource+Properties.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -348,6 +249,7 @@
 				KH0000040000000000000001 /* KeyHandling */,
 				STA000040000000000000001 /* State */,
 				ST0000040000000000000001 /* Strategies */,
+				CP0000020000000000000001 /* InputClientPolicy.swift */,
 				A20000220000000000000012 /* KeyCode.swift */,
 			);
 			path = Input;
@@ -362,6 +264,7 @@
 				IC0000020000000000000003 /* InputControllerPredictions.swift */,
 				IC0000020000000000000004 /* InputControllerKeyHandling.swift */,
 				IC0000020000000000000005 /* InputControllerComposition.swift */,
+				TP0000020000000000000001 /* InputControllerTransparentPrediction.swift */,
 			);
 			path = Controller;
 			sourceTree = "<group>";
@@ -378,7 +281,6 @@
 		KH0000040000000000000001 /* KeyHandling */ = {
 			isa = PBXGroup;
 			children = (
-				KH0000020000000000000001 /* KeyHandler.swift */,
 				KH0000020000000000000002 /* LatinKeyHandler.swift */,
 			);
 			path = KeyHandling;
@@ -387,8 +289,6 @@
 		ST0000040000000000000001 /* Strategies */ = {
 			isa = PBXGroup;
 			children = (
-				IN0000020000000000000003 /* InputStrategy.swift */,
-				LA0000020000000000000001 /* LatinInputStrategy.swift */,
 			);
 			path = Strategies;
 			sourceTree = "<group>";
@@ -397,9 +297,6 @@
 			isa = PBXGroup;
 			children = (
 				A2000017000000000000000H /* SpellCheckPredictor.swift */,
-				KL0000020000000000000001 /* KenLMBridge.h */,
-				KL0000020000000000000002 /* KenLMBridge.mm */,
-				KL0000020000000000000003 /* KenLMPredictor.swift */,
 			);
 			path = Prediction;
 			sourceTree = "<group>";
@@ -417,11 +314,8 @@
 			isa = PBXGroup;
 			children = (
 				A200001C000000000000000M /* SettingsWindowController.swift */,
-				SW0000020000000000000001 /* SettingsWindowControllerKeyboards.swift */,
-				SW0000020000000000000002 /* SettingsWindowControllerLanguages.swift */,
 				SW0000020000000000000004 /* SettingsWindowControllerCustomization.swift */,
 				SW0000020000000000000005 /* SettingsWindowControllerAbout.swift */,
-				SW0000020000000000000006 /* SettingsWindowControllerGeneral.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -446,21 +340,11 @@
 			path = UI;
 			sourceTree = "<group>";
 		};
-		A40000070000000000000007 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				KL0000020000000000000006 /* KenLM */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
 		A40000080000000000000008 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				A2000012000000000000000C /* InputMethodKit.framework */,
-				A200001E000000000000000O /* Carbon.framework */,
 				BB0000000000000000000021 /* XCTest.framework */,
-				KL0000020000000000000005 /* kenlm.xcframework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -498,20 +382,9 @@
 		TSA000000000000000000001 /* App */ = {
 			isa = PBXGroup;
 			children = (
-				LM0000020000000000000003 /* LanguageManagerTests.swift */,
-				LN0000020000000000000001 /* LanguageManagerNotificationTests.swift */,
-				LB0000020000000000000001 /* LanguageManagerBaseCodeTests.swift */,
-				BB0000000000000000000013 /* SettingsManagerTests.swift */,
-				BB0000000000000000000025 /* SettingsManagerExtendedTests.swift */,
-				NT0000020000000000000009 /* SettingsManagerMappingTests.swift */,
 				NT0000020000000000000002 /* ConstantsTests.swift */,
-				NT0000020000000000000015 /* LanguageManagerSelectionTests.swift */,
-				NT0000020000000000000018 /* SettingsManagerUpdateTests.swift */,
-				NF0000020000000000000005 /* LanguageManagerEffectiveLanguageTests.swift */,
+				PRIV00020000000000000001 /* PrivacyLoggingTests.swift */,
 				NF0000020000000000000006 /* NotificationNameTests.swift */,
-				NF0000020000000000000007 /* BaseLanguageCodeTests.swift */,
-				NF000002000000000000000E /* SettingsManagerIsEnabledTests.swift */,
-				NF000002000000000000000F /* SettingsManagerNextWordTests.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -519,23 +392,19 @@
 		TSI000000000000000000001 /* Input */ = {
 			isa = PBXGroup;
 			children = (
-				BB000000000000000000002B /* ContextTrimmingTests.swift */,
 				GC0000020000000000000002 /* GridCandidateStateTests.swift */,
 				IN0000020000000000000006 /* InputControllerTests.swift */,
+				CAPS00000000000000000002 /* InputControllerEventRoutingTests.swift */,
+				CP0000020000000000000002 /* InputClientPolicyTests.swift */,
+				TP0000020000000000000002 /* InputControllerTransparentPredictionTests.swift */,
 				BB0000000000000000000014 /* InputLogicTests.swift */,
-				IS0000020000000000000001 /* InputStateContextAccumulationTests.swift */,
 				BB0000000000000000000026 /* KeyCodeExtendedTests.swift */,
 				BB0000000000000000000011 /* KeyCodeTests.swift */,
 				NT0000020000000000000003 /* GridCandidateStateNavigationTests.swift */,
-				NT0000020000000000000005 /* InputStateTrimContextTests.swift */,
-				NT0000020000000000000010 /* InputStateResetTests.swift */,
 				NT0000020000000000000011 /* GridCandidateStatePredictionAtTests.swift */,
 				NT0000020000000000000019 /* GridCandidateStateClampTests.swift */,
 				NF0000020000000000000001 /* LatinKeyHandlerTests.swift */,
-				NF0000020000000000000002 /* LatinInputStrategyTests.swift */,
 				NF0000020000000000000003 /* GridCandidateStateEdgeCaseTests.swift */,
-				NF0000020000000000000004 /* InputStateTrimContextEdgeCaseTests.swift */,
-				NF000002000000000000000C /* InputStateRulesInteractionTests.swift */,
 			);
 			path = Input;
 			sourceTree = "<group>";
@@ -544,7 +413,6 @@
 			isa = PBXGroup;
 			children = (
 				BB0000000000000000000023 /* SpellCheckPredictorTests.swift */,
-				KL0000020000000000000004 /* KenLMPredictorTests.swift */,
 				NF000002000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift */,
 			);
 			path = Prediction;
@@ -553,19 +421,6 @@
 		TSR000000000000000000001 /* Rules */ = {
 			isa = PBXGroup;
 			children = (
-				GR0000020000000000000002 /* GermanRulesTests.swift */,
-				LD0000020000000000000001 /* LanguageDescriptorTests.swift */,
-				TR0000020000000000000002 /* TypingRulesTests.swift */,
-				RE0000020000000000000001 /* TypingRulesEdgeCaseTests.swift */,
-				NT0000020000000000000001 /* LanguageDescriptorExtendedTests.swift */,
-				NT0000020000000000000004 /* TypingRulesCapitalizationTests.swift */,
-				NT0000020000000000000012 /* TypingRulesBoolPropertyTests.swift */,
-				NT0000020000000000000013 /* LanguageDescriptorStrategyTests.swift */,
-				NT0000020000000000000016 /* TypingRulesOverlapTests.swift */,
-				NT0000020000000000000020 /* TypingRulesApplyCapitalizationTests.swift */,
-				NF0000020000000000000009 /* TypingRulesContextCapitalizationTests.swift */,
-				NF000002000000000000000A /* TypingRulesCharacterSetInteractionTests.swift */,
-				NF000002000000000000000B /* LanguageDescriptorFactoryTests.swift */,
 			);
 			path = Rules;
 			sourceTree = "<group>";
@@ -574,7 +429,6 @@
 			isa = PBXGroup;
 			children = (
 				BB000000000000000000002D /* CandidateWindowSelectionTests.swift */,
-				CW0000010000000000000001 /* CandidateWindowGridTests.swift */,
 				CW0000010000000000000002 /* CandidateWindowRowNavigationTests.swift */,
 				BB0000000000000000000012 /* NSColorHexTests.swift */,
 				BB000000000000000000002E /* ThemeManagerExtendedTests.swift */,
@@ -600,8 +454,6 @@
 				A60000010000000000000001 /* Sources */,
 				A30000010000000000000001 /* Frameworks */,
 				A60000020000000000000002 /* Resources */,
-				A60000040000000000000004 /* Set Build Version */,
-				A60000030000000000000003 /* Install Input Method */,
 				XF0000030000000000000001 /* Embed Frameworks */,
 			);
 			buildRules = (
@@ -673,53 +525,13 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				KL0000010000000000000005 /* KenLM in Resources */,
 				AC0000010000000000000001 /* Assets.xcassets in Resources */,
+				MI0000010000000000000001 /* SwiftTypeMenuIcon.png in Resources */,
+				MI0000010000000000000002 /* SwiftTypeInputSourceIcon.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A60000040000000000000004 /* Set Build Version */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Set Build Version";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "VERSION=$(TZ=UTC0 date +\"%Y.%m.%d.%H%M%S\")\nPLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString ${VERSION}\" \"${PLIST}\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion ${VERSION}\" \"${PLIST}\"\necho \"Set version to ${VERSION}\"\n";
-		};
-		A60000030000000000000003 /* Install Input Method */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Install Input Method";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Kill existing SwiftType process\nkillall SwiftType 2>/dev/null || true\n\n# Wait for process to fully terminate\nsleep 1\n\n# Remove any system-wide installation to prevent duplicate entries in Keyboard Settings\nrm -rf /Library/Input\\ Methods/SwiftType.app 2>/dev/null || true\n\n# Remove old user-level installation to avoid stale cached files\nrm -rf ~/Library/Input\\ Methods/SwiftType.app\n\n# Copy app to Input Methods directory\nmkdir -p ~/Library/Input\\ Methods\ncp -R \"${BUILT_PRODUCTS_DIR}/SwiftType.app\" ~/Library/Input\\ Methods/\n\n# Re-sign for ad-hoc execution outside Xcode\ncodesign --force --deep --sign - ~/Library/Input\\ Methods/SwiftType.app\n\n# Touch directory to bust macOS IME cache\ntouch ~/Library/Input\\ Methods/\n\necho \"SwiftType installed to ~/Library/Input Methods/\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A60000010000000000000001 /* Sources */ = {
@@ -736,37 +548,24 @@
 				A1000015000000000000000F /* Theme.swift in Sources */,
 				A1000016000000000000000G /* ThemeManager.swift in Sources */,
 				A1000017000000000000000H /* StatusBarController.swift in Sources */,
-				A1000018000000000000000I /* SettingsManager.swift in Sources */,
 				A1000019000000000000000J /* SettingsWindowController.swift in Sources */,
-				A100001A000000000000000K /* InputSourceSwitcher.swift in Sources */,
 				A100001C000000000000000M /* Constants.swift in Sources */,
 				A100001D000000000000000N /* NotificationNames.swift in Sources */,
-				A100001E000000000000000O /* TISInputSource+Properties.swift in Sources */,
 				A100001F000000000000000P /* KeyCode.swift in Sources */,
+				CP0000010000000000000001 /* InputClientPolicy.swift in Sources */,
 				A10000200000000000000011 /* NSColorHex.swift in Sources */,
-				TR0000010000000000000001 /* TypingRules.swift in Sources */,
 				ER0000010000000000000001 /* EnglishRules.swift in Sources */,
-				GR0000010000000000000001 /* GermanRules.swift in Sources */,
-				LM0000010000000000000001 /* LanguageDescriptor.swift in Sources */,
-				LM0000010000000000000002 /* LanguageManager.swift in Sources */,
 				LG0000010000000000000001 /* Log.swift in Sources */,
 				IN0000010000000000000002 /* InputState.swift in Sources */,
-				IN0000010000000000000003 /* InputStrategy.swift in Sources */,
 				GC0000010000000000000001 /* GridCandidateState.swift in Sources */,
-				SW0000010000000000000001 /* SettingsWindowControllerKeyboards.swift in Sources */,
-				SW0000010000000000000002 /* SettingsWindowControllerLanguages.swift in Sources */,
 				SW0000010000000000000004 /* SettingsWindowControllerCustomization.swift in Sources */,
 				SW0000010000000000000005 /* SettingsWindowControllerAbout.swift in Sources */,
-				SW0000010000000000000006 /* SettingsWindowControllerGeneral.swift in Sources */,
 				IC0000010000000000000001 /* InputControllerLifecycle.swift in Sources */,
 				IC0000010000000000000002 /* InputControllerStateManagement.swift in Sources */,
 				IC0000010000000000000003 /* InputControllerPredictions.swift in Sources */,
 				IC0000010000000000000004 /* InputControllerKeyHandling.swift in Sources */,
 				IC0000010000000000000005 /* InputControllerComposition.swift in Sources */,
-				KL0000010000000000000001 /* KenLMBridge.mm in Sources */,
-				KL0000010000000000000002 /* KenLMPredictor.swift in Sources */,
-				LA0000010000000000000001 /* LatinInputStrategy.swift in Sources */,
-				KH0000010000000000000001 /* KeyHandler.swift in Sources */,
+				TP0000010000000000000001 /* InputControllerTransparentPrediction.swift in Sources */,
 				KH0000010000000000000002 /* LatinKeyHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -777,64 +576,34 @@
 			files = (
 				BB0000000000000000000016 /* KeyCodeTests.swift in Sources */,
 				BB0000000000000000000017 /* NSColorHexTests.swift in Sources */,
-				BB0000000000000000000018 /* SettingsManagerTests.swift in Sources */,
 				BB0000000000000000000019 /* InputLogicTests.swift in Sources */,
 				BB0000000000000000000020 /* ThemeManagerTests.swift in Sources */,
 				BB0000000000000000000027 /* SpellCheckPredictorTests.swift in Sources */,
-				KL0000010000000000000003 /* KenLMPredictorTests.swift in Sources */,
-				BB0000000000000000000029 /* SettingsManagerExtendedTests.swift in Sources */,
 				BB000000000000000000002A /* KeyCodeExtendedTests.swift in Sources */,
-				BB000000000000000000002F /* ContextTrimmingTests.swift in Sources */,
 				BB0000000000000000000030 /* ThemeTests.swift in Sources */,
 				BB0000000000000000000031 /* CandidateWindowSelectionTests.swift in Sources */,
-				CW0000020000000000000001 /* CandidateWindowGridTests.swift in Sources */,
 				BB0000000000000000000032 /* ThemeManagerExtendedTests.swift in Sources */,
-				LM0000010000000000000003 /* LanguageManagerTests.swift in Sources */,
-				TR0000010000000000000002 /* TypingRulesTests.swift in Sources */,
-				GR0000010000000000000002 /* GermanRulesTests.swift in Sources */,
-				LD0000010000000000000001 /* LanguageDescriptorTests.swift in Sources */,
+				CAPS00000000000000000001 /* InputControllerEventRoutingTests.swift in Sources */,
+				CP0000010000000000000002 /* InputClientPolicyTests.swift in Sources */,
+				TP0000010000000000000002 /* InputControllerTransparentPredictionTests.swift in Sources */,
 				IN0000010000000000000006 /* InputControllerTests.swift in Sources */,
-				IS0000010000000000000001 /* InputStateContextAccumulationTests.swift in Sources */,
 				GC0000010000000000000002 /* GridCandidateStateTests.swift in Sources */,
-				LN0000010000000000000001 /* LanguageManagerNotificationTests.swift in Sources */,
 				TE0000010000000000000001 /* ThemeManagerEdgeCaseTests.swift in Sources */,
-				RE0000010000000000000001 /* TypingRulesEdgeCaseTests.swift in Sources */,
 				CW0000020000000000000002 /* CandidateWindowRowNavigationTests.swift in Sources */,
-				LB0000010000000000000001 /* LanguageManagerBaseCodeTests.swift in Sources */,
-				NT0000010000000000000001 /* LanguageDescriptorExtendedTests.swift in Sources */,
 				NT0000010000000000000002 /* ConstantsTests.swift in Sources */,
+				PRIV00010000000000000001 /* PrivacyLoggingTests.swift in Sources */,
 				NT0000010000000000000003 /* GridCandidateStateNavigationTests.swift in Sources */,
-				NT0000010000000000000004 /* TypingRulesCapitalizationTests.swift in Sources */,
-				NT0000010000000000000005 /* InputStateTrimContextTests.swift in Sources */,
 				NT0000010000000000000006 /* ThemeManagerGridValidationTests.swift in Sources */,
 				NT0000010000000000000007 /* ThemeBuildTests.swift in Sources */,
-				NT0000010000000000000009 /* SettingsManagerMappingTests.swift in Sources */,
-				NT0000010000000000000010 /* InputStateResetTests.swift in Sources */,
 				NT0000010000000000000011 /* GridCandidateStatePredictionAtTests.swift in Sources */,
-				NT0000010000000000000012 /* TypingRulesBoolPropertyTests.swift in Sources */,
-				NT0000010000000000000013 /* LanguageDescriptorStrategyTests.swift in Sources */,
 				NT0000010000000000000014 /* CandidateWindowUpdateTests.swift in Sources */,
-				NT0000010000000000000015 /* LanguageManagerSelectionTests.swift in Sources */,
-				NT0000010000000000000016 /* TypingRulesOverlapTests.swift in Sources */,
 				NT0000010000000000000017 /* ThemeManagerBorderColorTests.swift in Sources */,
-				NT0000010000000000000018 /* SettingsManagerUpdateTests.swift in Sources */,
 				NT0000010000000000000019 /* GridCandidateStateClampTests.swift in Sources */,
-				NT0000010000000000000020 /* TypingRulesApplyCapitalizationTests.swift in Sources */,
 				NF0000010000000000000001 /* LatinKeyHandlerTests.swift in Sources */,
-				NF0000010000000000000002 /* LatinInputStrategyTests.swift in Sources */,
 				NF0000010000000000000003 /* GridCandidateStateEdgeCaseTests.swift in Sources */,
-				NF0000010000000000000004 /* InputStateTrimContextEdgeCaseTests.swift in Sources */,
-				NF0000010000000000000005 /* LanguageManagerEffectiveLanguageTests.swift in Sources */,
 				NF0000010000000000000006 /* NotificationNameTests.swift in Sources */,
-				NF0000010000000000000007 /* BaseLanguageCodeTests.swift in Sources */,
 				NF0000010000000000000008 /* ThemeManagerBuildThemeTests.swift in Sources */,
-				NF0000010000000000000009 /* TypingRulesContextCapitalizationTests.swift in Sources */,
-				NF000001000000000000000A /* TypingRulesCharacterSetInteractionTests.swift in Sources */,
-				NF000001000000000000000B /* LanguageDescriptorFactoryTests.swift in Sources */,
-				NF000001000000000000000C /* InputStateRulesInteractionTests.swift in Sources */,
 				NF000001000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift in Sources */,
-				NF000001000000000000000E /* SettingsManagerIsEnabledTests.swift in Sources */,
-				NF000001000000000000000F /* SettingsManagerNextWordTests.swift in Sources */,
 				NC0000010000000000000001 /* NotificationCounter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -920,7 +689,9 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_COVERAGE_MAPPING = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_CODE_COVERAGE = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -948,6 +719,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_CODE_COVERAGE = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -977,29 +749,15 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/Frameworks/kenlm.xcframework/macos-arm64_x86_64/Headers",
-				);
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/Frameworks/kenlm.xcframework/macos-arm64_x86_64",
-				);
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lkenlm_util",
-					"-lz",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.matthew.inputmethod.SwiftType;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "SwiftType-Bridging-Header.h";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
@@ -1008,34 +766,23 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_COVERAGE_MAPPING = NO;
+				CLANG_ENABLE_CODE_COVERAGE = NO;
 				CODE_SIGN_ENTITLEMENTS = SwiftType.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_CODE_COVERAGE = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/Frameworks/kenlm.xcframework/macos-arm64_x86_64/Headers",
-				);
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/Frameworks/kenlm.xcframework/macos-arm64_x86_64",
-				);
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lkenlm_util",
-					"-lz",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.matthew.inputmethod.SwiftType;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "SwiftType-Bridging-Header.h";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;

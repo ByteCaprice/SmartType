@@ -16,7 +16,7 @@ if let existing = NSApp.delegate {
     appDelegate = delegate
 }
 
-Log.startup.info("NSApplication.shared type = \(String(describing: type(of: NSApp!)), privacy: .public), delegate = \(String(describing: type(of: appDelegate)), privacy: .public)")
+Log.startup.info("NSApplication delegate configured")
 
 // appDelegate strong reference keeps delegate alive for the app's lifetime
 NSApp.run()

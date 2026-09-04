@@ -1,13 +1,9 @@
 import AppKit
 import InputMethodKit
-import os
 
-/// Key handling for Latin-script languages (English, German).
-///
-/// Latin mode shows a literal slot (the raw buffer) as the first candidate,
-/// inserts a trailing space after committed words, and triggers next-word
-/// predictions after Space (but not Return).
-struct LatinKeyHandler: KeyHandler {
+/// English input shows a literal slot (the raw buffer) as the first candidate,
+/// and inserts a trailing space after committed words.
+@MainActor struct LatinKeyHandler {
     func handleCandidateSelection(
         predictionIndex: Int,
         controller: InputController,
@@ -27,20 +23,15 @@ struct LatinKeyHandler: KeyHandler {
         if CandidateWindow.shared.isVisible,
            let selected = CandidateWindow.shared.selectedCandidate()
         {
-            Log.inputController.info("Space committed selected candidate: \(selected, privacy: .public)")
             controller.commitWord(selected, client: client)
-            controller.triggerNextWordPredictions(client: client)
             return true
         }
 
         guard !state.compositionBuffer.isEmpty else {
-            state.appendToContext(" ")
             return false
         }
 
-        Log.inputController.info("Space committed literal: \(state.compositionBuffer, privacy: .public)")
         controller.commitWord(state.compositionBuffer, client: client)
-        controller.triggerNextWordPredictions(client: client)
         return true
     }
 

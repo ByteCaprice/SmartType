@@ -1,7 +1,7 @@
 @testable import SwiftType
 import XCTest
 
-/// Tests for `LatinKeyHandler` — the KeyHandler implementation for English/German.
+/// Tests for the English `LatinKeyHandler`.
 ///
 /// These tests verify the pure logic of the key handler without requiring an IMKServer.
 /// Methods that require `InputController` + `IMKTextInput` are tested via their

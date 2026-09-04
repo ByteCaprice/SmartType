@@ -201,26 +201,6 @@ import XCTest
         XCTAssertGreaterThanOrEqual(state.visibleRowOffset, 0)
     }
 
-    // MARK: - maxPredictionIndexNeeded
-
-    func testMaxPredictionIndexNeededForRow0() {
-        let state = makeState(cols: 5, predictions: preds(10))
-        // Through row 0: need indices 0..4 → max = 4
-        XCTAssertEqual(state.maxPredictionIndexNeeded(throughRow: 0), 4)
-    }
-
-    func testMaxPredictionIndexNeededForRow1() {
-        let state = makeState(cols: 5, predictions: preds(10))
-        // Through row 1: need indices 0..9 → max = 9
-        XCTAssertEqual(state.maxPredictionIndexNeeded(throughRow: 1), 9)
-    }
-
-    func testMaxPredictionIndexNeededForLargeRow() {
-        let state = makeState(cols: 7, predictions: preds(21))
-        // Through row 2: (2+1)*7 - 1 = 20
-        XCTAssertEqual(state.maxPredictionIndexNeeded(throughRow: 2), 20)
-    }
-
     // MARK: - predictionAt
 
     func testPredictionAtReturnsCorrectValue() {

@@ -8,7 +8,7 @@ class NSManualApplication: NSApplication {
     override init() {
         super.init()
         delegate = appDelegate
-        Log.nsManualApp.info("NSManualApplication.init() called — delegate set to \(String(describing: type(of: self.appDelegate)), privacy: .public)")
+        Log.nsManualApp.info("NSManualApplication initialized")
     }
 
     @available(*, unavailable)

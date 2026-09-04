@@ -1,5 +1,5 @@
-import AppKit
-import InputMethodKit
+@preconcurrency import AppKit
+@preconcurrency import InputMethodKit
 import os
 
 /// Key routing and shared key handlers. Language-specific behaviour is delegated
@@ -7,32 +7,83 @@ import os
 extension InputController {
     // MARK: - Key Routing
 
+    override func recognizedEvents(_ sender: Any!) -> Int {
+        Int(NSEvent.EventTypeMask.keyDown.union(.flagsChanged).rawValue)
+    }
+
     override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
-        guard let event, event.type == .keyDown else { return false }
-        guard let client = sender as? (any IMKTextInput) else {
-            Log.inputController.error("handle() — sender failed IMKTextInput cast, type: \(String(describing: type(of: sender)), privacy: .public)")
+        guard let event else { return false }
+
+        // Caps Lock and dedicated language keys arrive as flags-changed events.
+        // Some web-based clients defer the source switch while marked text is active,
+        // so commit first and still leave the event to macOS.
+        if event.type == .flagsChanged, event.keyCode == 0x39,
+           let client = sender as? (any IMKTextInput)
+        {
+            Log.inputController.info("Caps Lock event received")
+            MainActor.assumeIsolated {
+                if state.mirrorsClientText
+                    || Self.usesTransparentPrediction(bundleIdentifier: client.bundleIdentifier())
+                {
+                    discardMirroredComposition()
+                } else if !state.compositionBuffer.isEmpty {
+                    Log.inputController.info("Committing composition before language switch")
+                    commitCompositionForLanguageSwitch(client: client)
+                }
+            }
             return false
         }
 
+        // Leave other modifier changes to macOS.
+        guard event.type == .keyDown else { return false }
+        guard let client = sender as? (any IMKTextInput) else {
+            Log.inputController.error("Input client has an unexpected type")
+            return false
+        }
+        let keyCode = event.keyCode
+        let modifierFlags = event.modifierFlags.rawValue
+        let characters = event.characters
+
         return MainActor.assumeIsolated {
-            handleKey(event, client: client)
+            handleKey(
+                keyCode: keyCode,
+                modifierFlags: NSEvent.ModifierFlags(rawValue: modifierFlags),
+                characters: characters,
+                client: client,
+            )
         }
     }
 
-    private func handleKey(_ event: NSEvent, client: any IMKTextInput) -> Bool {
-        // Pass all events through when typing in SwiftType's own windows (e.g. Settings)
-        if client.bundleIdentifier() == Self.ownBundleIdentifier { return false }
+    private func handleKey(
+        keyCode: UInt16,
+        modifierFlags: NSEvent.ModifierFlags,
+        characters: String?,
+        client: any IMKTextInput,
+    ) -> Bool {
+        // Terminal line editors and raw-mode TUIs need every key unchanged. IMK cannot
+        // distinguish a shell prompt from programs running inside the same terminal.
+        switch InputClientPolicy.mode(forBundleIdentifier: client.bundleIdentifier()) {
+        case .passthrough:
+            return false
+        case .transparentPrediction:
+            return handleTransparentPredictionKey(
+                keyCode: keyCode,
+                modifierFlags: modifierFlags,
+                characters: characters,
+                client: client,
+            )
+        case .inline:
+            break
+        }
 
-        let key = KeyCode(rawValue: event.keyCode)
-        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let key = KeyCode(rawValue: keyCode)
+        let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
 
         // Pass through modifier key combinations (Cmd, Ctrl, Option)
         if !modifiers.isDisjoint(with: Self.modifierMask) {
             commitCompositionBuffer(client: client)
             return false
         }
-
-        cancelNextWordIfNeeded(key: key, event: event)
 
         switch key {
         case .key1, .key2, .key3, .key4, .key5, .key6, .key7:
@@ -55,9 +106,6 @@ extension InputController {
 
         case .downArrow:
             return handleNavigation(client: client) {
-                if CandidateWindow.shared.needsMorePredictionsForDownArrow() {
-                    fetchMorePredictions()
-                }
                 CandidateWindow.shared.moveActiveRowDown()
             }
 
@@ -80,7 +128,7 @@ extension InputController {
             break
         }
 
-        return handleCharacterInput(event, client: client)
+        return handleCharacterInput(characters, client: client)
     }
 
     // MARK: - Key Handlers
@@ -118,14 +166,12 @@ extension InputController {
         return true
     }
 
-    private func handleCharacterInput(_ event: NSEvent, client: any IMKTextInput) -> Bool {
-        guard let characters = event.characters, let char = characters.first else { return false }
+    private func handleCharacterInput(_ characters: String?, client: any IMKTextInput) -> Bool {
+        guard let char = characters?.first else { return false }
 
         if char.isLetter {
-            if state.isNextWordMode { cancelPredictions() }
             state.didAutoInsertTrailingSpace = false
             state.compositionBuffer.append(char)
-            Log.inputController.info("handle() keyCode=\(event.keyCode, privacy: .public) char='\(String(char), privacy: .public)' buffer='\(self.state.compositionBuffer, privacy: .public)'")
             updateMarkedText(client: client)
             updatePredictions(client: client)
             return true
@@ -134,7 +180,7 @@ extension InputController {
         // Continue composing when an apostrophe follows word characters — this keeps
         // contractions like "don't" and "I'm" in a single composition buffer rather than
         // splitting at the apostrophe.
-        if state.typingRules.compositionContinuationMarks.contains(char), !state.compositionBuffer.isEmpty {
+        if typingRules.compositionContinuationMarks.contains(char), !state.compositionBuffer.isEmpty {
             state.compositionBuffer.append(char)
             updateMarkedText(client: client)
             updatePredictions(client: client)
@@ -145,13 +191,9 @@ extension InputController {
             commitCompositionBuffer(client: client)
         }
 
-        // Cancel next-word mode for any non-letter, non-continuation character.
-        // `cancelNextWordIfNeeded` exempts candidate key codes (1–7) so they can select
-        // predictions, but Shift+number (!, @, #, …) bypasses that guard. Those chars
-        // fall through here and must not leave the candidate window open.
         cancelPredictions()
 
-        if state.typingRules.autoRemoveSpaceChars.contains(char) {
+        if typingRules.autoRemoveSpaceChars.contains(char) {
             return handleAutoSpacePunctuation(char, client: client)
         }
 
@@ -161,19 +203,15 @@ extension InputController {
     private func handleAutoSpacePunctuation(_ char: Character, client: any IMKTextInput) -> Bool {
         let charStr = String(char)
 
-        if state.didAutoInsertTrailingSpace, state.typingContext.hasSuffix(" ") {
+        if state.didAutoInsertTrailingSpace {
             if let replacementRange = autoInsertedSpaceRange(client: client) {
-                Log.inputController.info("Auto-removing space before '\(charStr, privacy: .public)'")
-                state.typingContext = String(state.typingContext.dropLast())
                 client.insertText(charStr, replacementRange: replacementRange)
-                state.appendToContext(charStr)
                 state.didAutoInsertTrailingSpace = false
                 return true
             }
         }
 
         client.insertText(charStr, replacementRange: Constants.replacementNotFound)
-        state.appendToContext(charStr)
         state.didAutoInsertTrailingSpace = false
         return true
     }
@@ -191,11 +229,6 @@ extension InputController {
     }
 
     private func handleBackspace(client: any IMKTextInput) -> Bool {
-        if state.isNextWordMode {
-            cancelPredictions()
-            return false
-        }
-
         guard !state.compositionBuffer.isEmpty else { return false }
 
         state.compositionBuffer.removeLast()

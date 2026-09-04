@@ -310,4 +310,129 @@ import XCTest
         CandidateWindow.shared.moveActiveColumnLeft()
         XCTAssertNil(CandidateWindow.shared.selectedCandidate()) // wrapped to literal
     }
+
+    func testVerticalLayoutShowsAllRowsAndMovesDownImmediately() {
+        CandidateWindow.shared.show(
+            candidates: ["hello", "help"],
+            literalText: "hel",
+            layout: .vertical,
+            client: nil,
+        )
+
+        CandidateWindow.shared.moveActiveRowDown()
+        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "hello")
+        CandidateWindow.shared.moveActiveColumnRight()
+        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "help")
+    }
+
+    func testVerticalSelectionKeysMapToVisibleRows() {
+        CandidateWindow.shared.show(
+            candidates: ["hello", "help"],
+            literalText: "hel",
+            layout: .vertical,
+            client: nil,
+        )
+
+        XCTAssertTrue(CandidateWindow.shared.isLiteralAt(gridColumn: 0))
+        XCTAssertEqual(CandidateWindow.shared.predictionIndexAt(gridColumn: 1), 1)
+        XCTAssertEqual(CandidateWindow.shared.predictionIndexAt(gridColumn: 2), 2)
+    }
+
+    func testVerticalSelectionKeysCannotSelectHiddenRows() {
+        let words = (0 ..< Constants.spellCompletionLimit).map { "w\($0)" }
+        CandidateWindow.shared.show(
+            candidates: words,
+            literalText: "lit",
+            layout: .vertical,
+            client: nil,
+        )
+
+        XCTAssertNil(
+            CandidateWindow.shared.predictionIndexAt(gridColumn: Constants.gridMaxVisibleRows)
+        )
+        XCTAssertFalse(
+            CandidateWindow.shared.isLiteralAt(gridColumn: Constants.gridMaxVisibleRows)
+        )
+    }
+
+    // MARK: - Vertical navigation boundaries
+
+    func testVerticalUpAtTopRowDoesNotCollapseAndLeftAtTopIsNoOp() {
+        // Up at the top row must NOT collapse the vertical list (unlike grid mode):
+        // a following Tab must still advance to the first prediction, not merely
+        // re-expand a collapsed window.
+        CandidateWindow.shared.show(
+            candidates: ["hello", "help"],
+            literalText: "hel",
+            layout: .vertical,
+            client: nil,
+        )
+
+        CandidateWindow.shared.moveActiveRowUp() // no-op at row 0, must not collapse
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate()) // still literal
+
+        CandidateWindow.shared.moveActiveColumnRight() // Tab → next row
+        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "hello")
+
+        CandidateWindow.shared.moveActiveColumnLeft() // ← back up to literal
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
+
+        CandidateWindow.shared.moveActiveColumnLeft() // ← at top: no wrap to last row
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
+        XCTAssertTrue(CandidateWindow.shared.isLiteralSelected)
+    }
+
+    func testVerticalDownStopsAtLastRowWithoutWrapping() {
+        CandidateWindow.shared.show(
+            candidates: ["hello", "help"],
+            literalText: "hel",
+            layout: .vertical,
+            client: nil,
+        )
+
+        CandidateWindow.shared.moveActiveRowDown() // → "hello"
+        CandidateWindow.shared.moveActiveRowDown() // → "help" (last row)
+        CandidateWindow.shared.moveActiveRowDown() // at last row: stays
+        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "help")
+    }
+
+    // MARK: - Vertical digit mapping follows the scrolled window
+
+    func testVerticalDigitMappingFollowsScrolledWindow() {
+        // 5 predictions + literal = 6 rows, 1 column. Down-navigation past the
+        // visible window scrolls it (visibleRowOffset > 0); digits must then map
+        // to the *visible* rows, and digit 1 must no longer denote the literal
+        // (it has scrolled out of view).
+        let words = (0 ..< Constants.spellCompletionLimit).map { "w\($0)" }
+        CandidateWindow.shared.show(
+            candidates: words,
+            literalText: "lit",
+            layout: .vertical,
+            client: nil,
+        )
+
+        let visibleRows = Constants.gridMaxVisibleRows
+        let totalRows = words.count + 1
+        // Navigate to the last row; the window is bottom-aligned afterwards.
+        for _ in 0 ..< totalRows {
+            CandidateWindow.shared.moveActiveRowDown()
+        }
+        let expectedOffset = totalRows - visibleRows // last row − visible window + 1
+
+        XCTAssertGreaterThan(expectedOffset, 0, "precondition: window must have scrolled")
+        XCTAssertFalse(
+            CandidateWindow.shared.isLiteralAt(gridColumn: 0),
+            "Literal is scrolled out of view; digit 1 must not select it"
+        )
+        XCTAssertEqual(
+            CandidateWindow.shared.predictionIndexAt(gridColumn: 0),
+            expectedOffset,
+            "Digit 1 maps to the first visible row after scrolling"
+        )
+        XCTAssertEqual(
+            CandidateWindow.shared.predictionIndexAt(gridColumn: 1),
+            expectedOffset + 1,
+            "Digit 2 maps to the second visible row after scrolling"
+        )
+    }
 }

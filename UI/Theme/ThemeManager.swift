@@ -37,6 +37,18 @@ enum ThemeColorKey: String, CaseIterable, Sendable {
     }
 }
 
+enum CandidateLayout: String, CaseIterable, Sendable {
+    case vertical
+    case grid
+
+    var displayName: String {
+        switch self {
+        case .vertical: "Vertical List"
+        case .grid: "Grid"
+        }
+    }
+}
+
 // MARK: - Theme Manager
 
 @MainActor final class ThemeManager {
@@ -47,11 +59,13 @@ enum ThemeColorKey: String, CaseIterable, Sendable {
     static let gridColsOptions = [4, 5, 6]
     static let defaultGridRows = 4
     static let gridRowsOptions = [3, 4, 5]
+    static let defaultCandidateLayout = CandidateLayout.vertical
 
     private enum Keys {
         static let highlightOpacity = "theme.highlightTransparency" // key string preserved for backwards compat
         static let gridCols = "theme.gridCols"
         static let gridRows = "theme.gridRows"
+        static let candidateLayout = "theme.candidateLayout"
     }
 
     private let defaults: UserDefaults
@@ -107,6 +121,19 @@ enum ThemeColorKey: String, CaseIterable, Sendable {
         setDefault(count, forKey: Keys.gridRows)
     }
 
+    // MARK: - Candidate Layout
+
+    var candidateLayout: CandidateLayout {
+        guard let value = defaults.string(forKey: Keys.candidateLayout) else {
+            return Self.defaultCandidateLayout
+        }
+        return CandidateLayout(rawValue: value) ?? Self.defaultCandidateLayout
+    }
+
+    func setCandidateLayout(_ layout: CandidateLayout) {
+        setDefault(layout.rawValue, forKey: Keys.candidateLayout)
+    }
+
     // MARK: - Reset
 
     func resetToDefaults() {
@@ -114,6 +141,7 @@ enum ThemeColorKey: String, CaseIterable, Sendable {
             Keys.highlightOpacity,
             Keys.gridCols,
             Keys.gridRows,
+            Keys.candidateLayout,
         ]
         for key in allKeys {
             defaults.removeObject(forKey: key)

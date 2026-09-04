@@ -18,6 +18,7 @@ import InputMethodKit
     // MARK: - Grid state
 
     private var gridState: GridCandidateState?
+    private var candidateLayout = CandidateLayout.grid
     /// Cached cursor rect — reused when reflowing the panel on expand / collapse.
     private var lastCursorRect: NSRect = .zero
 
@@ -103,20 +104,32 @@ import InputMethodKit
     /// `candidates` is the full display-capitalised prediction buffer. When `literalText` is non-nil it is prepended
     /// to `candidates` in the unified predictions array so that `predictions[0]` = literal
     /// and `predictions[1…]` = word predictions. The grid starts collapsed (row 0 only).
-    func show(candidates: [String], literalText: String? = nil, client: (any IMKTextInput)?) {
+    func show(
+        candidates: [String],
+        literalText: String? = nil,
+        layout: CandidateLayout = .grid,
+        client: (any IMKTextInput)?
+    ) {
         guard !candidates.isEmpty || literalText != nil else {
             hide()
             return
         }
 
         let unified = literalText.map { [$0] + candidates } ?? candidates
+        candidateLayout = layout
         gridState = GridCandidateState(
-            columnCount: Constants.gridMaxVisibleCols,
+            columnCount: layout == .vertical ? 1 : Constants.gridMaxVisibleCols,
             hasLiteral: literalText != nil,
             maxVisibleRows: Constants.gridMaxVisibleRows,
             predictions: unified,
         )
+        if layout == .vertical {
+            gridState?.isExpanded = true
+        }
 
+        if let client {
+            panel.level = NSWindow.Level(rawValue: Int(client.windowLevel()) + 1)
+        }
         lastCursorRect = resolvedCursorRect(from: client)
         refreshView()
 
@@ -140,40 +153,34 @@ import InputMethodKit
     /// Moves the active row up by one.
     /// Stays expanded when arriving at row 0; collapses on a second press while at row 0.
     func moveActiveRowUp() {
-        mutateGrid({ $0.moveRowUp() }, reframe: true)
+        mutateGrid({ state in
+            if candidateLayout == .vertical, state.activeRow == 0 { return }
+            state.moveRowUp()
+        }, reframe: true)
     }
 
     // MARK: - Column navigation
 
     /// Cycles the active column right within the current row (tab / right arrow).
     func moveActiveColumnRight() {
-        mutateGrid({ $0.moveColumnRight() }, reframe: false)
+        mutateGrid({ state in
+            if candidateLayout == .vertical {
+                state.moveRowDown()
+            } else {
+                state.moveColumnRight()
+            }
+        }, reframe: false)
     }
 
     /// Cycles the active column left within the current row (left arrow).
     func moveActiveColumnLeft() {
-        mutateGrid({ $0.moveColumnLeft() }, reframe: false)
-    }
-
-    // MARK: - Lazy-load signal
-
-    /// Whether the prediction buffer needs more items before navigating down.
-    /// True when the buffer doesn't cover the next row plus a one-row prefetch buffer.
-    func needsMorePredictionsForDownArrow() -> Bool {
-        guard let gs = gridState else { return false }
-        let targetRow = gs.activeRow + 2 // next row + 1-row prefetch buffer
-        let maxIdx = gs.maxPredictionIndexNeeded(throughRow: targetRow)
-        return maxIdx >= gs.predictions.count
-    }
-
-    /// Replaces the prediction buffer with a larger batch fetched during lazy loading.
-    /// Does not reset navigation state (activeRow / isExpanded / activeCol).
-    /// When `hasLiteral` is true the literal at `predictions[0]` is preserved and
-    /// the incoming batch replaces `predictions[1…]`.
-    func updatePredictions(_ predictions: [String]) {
-        mutateGrid({ gs in
-            gs.predictions = gs.hasLiteral ? [gs.predictions[0]] + predictions : predictions
-        }, reframe: true)
+        mutateGrid({ state in
+            if candidateLayout == .vertical {
+                if state.activeRow > 0 { state.moveRowUp() }
+            } else {
+                state.moveColumnLeft()
+            }
+        }, reframe: false)
     }
 
     // MARK: - Selection queries
@@ -194,12 +201,20 @@ import InputMethodKit
     /// Returns `nil` for the literal cell or cells beyond the loaded buffer.
     func predictionIndexAt(gridColumn col: Int) -> Int? {
         guard let gs = gridState else { return nil }
+        if candidateLayout == .vertical {
+            guard col >= 0, col < gs.renderedRowCount else { return nil }
+            return gs.predictionIndex(row: gs.visibleRowOffset + col, col: 0)
+        }
         return gs.predictionIndex(row: gs.activeRow, col: col)
     }
 
     /// True when (activeRow, col) is the literal slot.
     func isLiteralAt(gridColumn col: Int) -> Bool {
         guard let gs = gridState else { return false }
+        if candidateLayout == .vertical {
+            guard col >= 0, col < gs.renderedRowCount else { return false }
+            return gs.hasLiteral && gs.visibleRowOffset + col == 0
+        }
         return gs.hasLiteral && gs.activeRow == 0 && col == 0
     }
 
@@ -218,7 +233,7 @@ import InputMethodKit
 
     private func refreshView() {
         guard let gs = gridState else { return }
-        candidateView.updateGrid(gs)
+        candidateView.updateGrid(gs, layout: candidateLayout)
     }
 
     /// Refreshes the view and resizes / repositions the panel to fit the new row count.

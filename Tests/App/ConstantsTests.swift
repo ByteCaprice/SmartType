@@ -21,6 +21,37 @@ import XCTest
         XCTAssertEqual(Constants.replacementNotFound.length, 0)
     }
 
+    func testSpellCompletionLimitIsFive() {
+        // Product requirement: at most five spell suggestions may be offered.
+        XCTAssertEqual(Constants.spellCompletionLimit, 5)
+    }
+
+    func testInputMethodSupportsCapsLockLanguageSwitching() {
+        let bundle = Bundle(for: InputController.self)
+
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "TICapsLockLanguageSwitchCapable") as? Bool,
+            true
+        )
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "TISInputSourceID") as? String,
+            "com.matthew.inputmethod.SwiftType"
+        )
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "TISIntendedLanguage") as? String,
+            "en"
+        )
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "tsInputMethodIconFileKey") as? String,
+            "SwiftTypeInputSourceIcon.png"
+        )
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "TISIconIsTemplate") as? Bool,
+            true
+        )
+        XCTAssertNotNil(bundle.url(forResource: "SwiftTypeInputSourceIcon", withExtension: "png"))
+    }
+
     // MARK: - Computed properties
 
     func testGridMaxVisibleColsMatchesThemeManager() {

@@ -66,22 +66,22 @@ extension SettingsWindowController {
             .appendingPathComponent("Library/Input Methods/SwiftType.app")
         let applicationsSymlink = URL(fileURLWithPath: "/Applications/SwiftType.app")
 
-        removeItem(at: appBundle, label: "app bundle")
+        removeItem(at: appBundle)
 
         if (try? FileManager.default.destinationOfSymbolicLink(atPath: applicationsSymlink.path)) != nil {
-            removeItem(at: applicationsSymlink, label: "symlink")
+            removeItem(at: applicationsSymlink)
         }
 
-        Log.settingsManager.info("Uninstall complete; terminating")
+        Log.settings.info("Uninstall complete; terminating")
         NSApp.terminate(nil)
     }
 
-    private func removeItem(at url: URL, label: String) {
+    private func removeItem(at url: URL) {
         do {
             try FileManager.default.removeItem(at: url)
-            Log.settingsManager.info("Removed \(label, privacy: .public): \(url.path, privacy: .public)")
+            Log.settings.info("Removed uninstall item")
         } catch {
-            Log.settingsManager.error("Failed to remove \(label, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            Log.settings.error("Failed to remove uninstall item")
         }
     }
 }

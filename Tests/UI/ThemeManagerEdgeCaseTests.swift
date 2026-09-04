@@ -8,7 +8,6 @@ import XCTest
 /// Focuses on:
 ///   - `gridCols` boundary values adjacent to the valid range (2 and 8)
 ///   - `highlightOpacity` with out-of-range values (no clamping is applied)
-///   - `hasMapping` on a disabled mapping (SettingsManager analogue)
 ///   - `setColor` rejection of syntactically invalid hex strings
 @MainActor final class ThemeManagerEdgeCaseTests: XCTestCase {
     private var defaults: UserDefaults!

@@ -163,6 +163,7 @@ chown -R "${LOGGED_IN_USER}:staff" "${DEST}"
 rm -rf "${STAGING_DIR}"
 
 echo "SwiftType installed to: ${DEST}"
+echo "Quit and reopen apps that were running during installation so they reconnect to SwiftType."
 
 # Create /Applications symlink so SwiftType appears in Finder and Launchpad
 ln -sf "${DEST}" "/Applications/SwiftType.app"

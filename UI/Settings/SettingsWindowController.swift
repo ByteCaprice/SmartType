@@ -38,16 +38,17 @@ import AppKit
 
     enum Layout {
         static let windowWidth: CGFloat = 550
-        static let standardPaneHeight: CGFloat = 400
-        static let edgeInset: CGFloat = 16
+        static let initialPaneHeight: CGFloat = 400
+        static let edgeInset: CGFloat = 24
         static let buttonSpacing: CGFloat = 8
-        static let colorWellSize: CGFloat = 30
-        static let popUpWidth: CGFloat = 160
-        static let sliderWidth: CGFloat = 120
+        static let colorWellSize: CGFloat = 28
+        static let popUpWidth: CGFloat = 180
+        static let sliderWidth: CGFloat = 144
         static let sliderLabelWidth: CGFloat = 36
-        static let rowLabelWidth: CGFloat = 170
+        static let rowLabelWidth: CGFloat = 160
         static let headerFontSize: CGFloat = 13
-        static let rowSpacing: CGFloat = 14
+        static let rowSpacing: CGFloat = 10
+        static let sectionSpacing: CGFloat = 18
     }
 
     private convenience init() {
@@ -58,8 +59,9 @@ import AppKit
         selectTab(.customization, animate: false)
     }
 
-    func showWindow() {
+    func showWindow(tab: Tab = .customization) {
         if customizationPane != nil { syncCustomizationControls() }
+        selectTab(tab, animate: window?.isVisible == true)
         NSApp.setActivationPolicy(.regular)
         window?.collectionBehavior = .canJoinAllSpaces
         window?.center()
@@ -70,13 +72,15 @@ import AppKit
 
     private static func makeWindow() -> NSWindow {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: Layout.windowWidth, height: Layout.standardPaneHeight),
+            contentRect: NSRect(x: 0, y: 0, width: Layout.windowWidth, height: Layout.initialPaneHeight),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false,
         )
-        window.title = "SwiftType"
-        window.toolbarStyle = .preference
+        window.title = "SwiftType Settings"
+        window.toolbarStyle = .unified
+        window.tabbingMode = .disallowed
+        window.isMovableByWindowBackground = true
         window.center()
         window.isReleasedWhenClosed = false
         return window
@@ -158,7 +162,7 @@ import AppKit
     }
 
     func makeRowLabel(_ title: String) -> NSTextField {
-        let label = NSTextField(labelWithString: title + ":")
+        let label = NSTextField(labelWithString: title)
         label.font = .systemFont(ofSize: Layout.headerFontSize)
         label.alignment = .right
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -169,6 +173,7 @@ import AppKit
     func makeColorWell(color: NSColor, action: Selector) -> NSColorWell {
         let well = NSColorWell(frame: NSRect(x: 0, y: 0, width: Layout.colorWellSize, height: Layout.colorWellSize))
         well.color = color
+        well.colorWellStyle = .minimal
         well.translatesAutoresizingMaskIntoConstraints = false
         well.widthAnchor.constraint(equalToConstant: Layout.colorWellSize).isActive = true
         well.heightAnchor.constraint(equalToConstant: Layout.colorWellSize).isActive = true
@@ -189,9 +194,17 @@ import AppKit
     }
 
     func makeSettingsRow(label title: String, control: NSView) -> NSView {
+        control.setAccessibilityLabel(title)
         let row = NSStackView(views: [makeRowLabel(title), control])
         row.alignment = .centerY
         row.spacing = Layout.buttonSpacing
         return row
+    }
+
+    func makeSectionLabel(_ title: String) -> NSTextField {
+        let label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
+        label.textColor = .labelColor
+        return label
     }
 }

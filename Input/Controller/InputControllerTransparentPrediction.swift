@@ -1,11 +1,12 @@
 import AppKit
+import Carbon.HIToolbox
 import InputMethodKit
 
 /// Chromium/CEF clients ignore IMK `handle()` return values unless marked text is
 /// active or a multi-character `insertText` happens in the same keyDown. Keeping
 /// marked text blocks Caps Lock language switching, so these apps get a mirrored
-/// prediction buffer: letters pass through unconsumed and the only client writes
-/// are commit-time inserts.
+/// prediction buffer: each printable key is inserted without marked text, while
+/// completion suffixes are inserted when the user selects a candidate.
 extension InputController {
     func handleTransparentPredictionKey(
         keyCode: UInt16,
@@ -27,8 +28,8 @@ extension InputController {
 
         switch key {
         case .key1, .key2, .key3, .key4, .key5, .key6, .key7:
-            if let key {
-                return handleTransparentCandidateKey(key, modifiers: modifiers, client: client)
+            if let key, handleTransparentCandidateKey(key, modifiers: modifiers, client: client) {
+                return true
             }
 
         case .backspace:
@@ -69,8 +70,7 @@ extension InputController {
         guard let slotIndex = KeyCode.candidateKeys.firstIndex(of: key) else { return false }
 
         if CandidateWindow.shared.isLiteralAt(gridColumn: slotIndex) {
-            commitTransparentWord(state.compositionBuffer, trailingSpace: true, client: client)
-            return true
+            return commitTransparentWord(state.compositionBuffer, trailingSpace: true, client: client)
         }
         guard let predIdx = CandidateWindow.shared.predictionIndexAt(gridColumn: slotIndex),
               predIdx < state.currentPredictions.count
@@ -83,29 +83,39 @@ extension InputController {
             original: state.compositionBuffer,
             suggested: prediction,
         )
-        commitTransparentWord(word, trailingSpace: true, client: client)
-        return true
+        return commitTransparentWord(word, trailingSpace: true, client: client)
     }
 
     private func handleTransparentSpace(client: any IMKTextInput) -> Bool {
-        guard CandidateWindow.shared.isVisible else { return false }
-
-        if let selected = CandidateWindow.shared.selectedCandidate() {
-            commitTransparentWord(selected, trailingSpace: true, client: client)
+        if CandidateWindow.shared.isVisible,
+           let selected = CandidateWindow.shared.selectedCandidate(),
+           commitTransparentWord(selected, trailingSpace: true, client: client)
+        {
             return true
         }
 
+        let hadComposition = !state.compositionBuffer.isEmpty
+        let expectedSpaceCursor = state.expectedCursor.map { $0 + 1 }
         discardMirroredComposition()
-        state.didAutoInsertTrailingSpace = true
-        return false
+        client.insertText(" ", replacementRange: Constants.replacementNotFound)
+        if hadComposition {
+            recordAutoInsertedTrailingSpace(client: client, expectedCursor: expectedSpaceCursor)
+        } else {
+            clearAutoInsertedTrailingSpace()
+        }
+        return true
     }
 
     private func handleTransparentReturn(client: any IMKTextInput) -> Bool {
-        guard CandidateWindow.shared.isVisible else { return false }
+        guard CandidateWindow.shared.isVisible else {
+            if !state.compositionBuffer.isEmpty {
+                discardMirroredComposition()
+            }
+            return false
+        }
 
         if let selected = CandidateWindow.shared.selectedCandidate() {
-            commitTransparentWord(selected, trailingSpace: false, client: client)
-            return true
+            return commitTransparentWord(selected, trailingSpace: false, client: client)
         }
 
         discardMirroredComposition()
@@ -123,7 +133,7 @@ extension InputController {
         if state.compositionBuffer.isEmpty {
             discardMirroredComposition()
         } else {
-            updatePredictions(client: client)
+            scheduleTransparentPredictionUpdate(client: client)
         }
         return false
     }
@@ -141,18 +151,26 @@ extension InputController {
 
         if char.isLetter {
             appendMirroredCharacter(char, client: client)
-            updatePredictions(client: client)
-            return false
+            client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+            scheduleTransparentPredictionUpdate(client: client)
+            return true
         }
 
         if typingRules.compositionContinuationMarks.contains(char), !state.compositionBuffer.isEmpty {
             appendMirroredCharacter(char, client: client)
-            updatePredictions(client: client)
-            return false
+            client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+            scheduleTransparentPredictionUpdate(client: client)
+            return true
+        }
+
+        if typingRules.autoRemoveSpaceChars.contains(char), state.didAutoInsertTrailingSpace {
+            return handleTransparentAutoSpacePunctuation(char, client: client)
         }
 
         discardMirroredComposition()
-        return false
+        guard char.isNumber || char.isPunctuation || char.isSymbol else { return false }
+        client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+        return true
     }
 
     private func appendMirroredCharacter(_ char: Character, client: any IMKTextInput) {
@@ -169,7 +187,7 @@ extension InputController {
             }
         }
 
-        state.didAutoInsertTrailingSpace = false
+        clearAutoInsertedTrailingSpace()
         state.compositionBuffer.append(char)
         if let expectedCursor = state.expectedCursor {
             state.expectedCursor = expectedCursor + (String(char) as NSString).length
@@ -180,7 +198,6 @@ extension InputController {
         if client.bundleIdentifier() != state.compositionClientBundleID {
             return true
         }
-
         let selection = client.selectedRange()
         if selection.location == NSNotFound {
             return false
@@ -194,30 +211,78 @@ extension InputController {
         return false
     }
 
+    private func scheduleTransparentPredictionUpdate(client: any IMKTextInput) {
+        pendingTransparentPredictionUpdate?.cancel()
+        let buffer = state.compositionBuffer
+        pendingTransparentPredictionUpdate = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(75))
+            } catch {
+                return
+            }
+            guard let self,
+                  !Task.isCancelled,
+                  self.state.mirrorsClientText,
+                  self.state.compositionBuffer == buffer
+            else {
+                return
+            }
+            self.pendingTransparentPredictionUpdate = nil
+            self.updatePredictions(client: client)
+        }
+    }
+
+    private func handleTransparentAutoSpacePunctuation(
+        _ char: Character,
+        client: any IMKTextInput,
+    ) -> Bool {
+        guard let replacementRange = autoInsertedSpaceRange(client: client) else {
+            clearAutoInsertedTrailingSpace()
+            client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+            return true
+        }
+
+        primeAndCommit(String(char), replacing: replacementRange, client: client)
+        clearAutoInsertedTrailingSpace()
+        return true
+    }
+
     private func commitTransparentWord(
         _ word: String,
         trailingSpace: Bool,
         client: any IMKTextInput,
-    ) {
+    ) -> Bool {
         let committed = trailingSpace ? word + " " : word
         let buffer = state.compositionBuffer
         let suffix = Self.transparentSuffix(of: word, after: buffer, trailingSpace: trailingSpace)
+        var expectedCursor: Int?
 
         if let suffix, (suffix as NSString).length > 1 {
             client.insertText(suffix, replacementRange: Constants.replacementNotFound)
+            expectedCursor = state.expectedCursor.map { $0 + (suffix as NSString).length }
         } else if let typedRegion = verifiedTypedRegion(client: client, buffer: buffer) {
             primeAndCommit(committed, replacing: typedRegion, client: client)
-        } else if let suffix, !suffix.isEmpty {
-            client.insertText(suffix, replacementRange: Constants.replacementNotFound)
+            expectedCursor = typedRegion.location + (committed as NSString).length
+        } else {
+            discardMirroredComposition()
+            clearAutoInsertedTrailingSpace()
+            return false
         }
 
-        let insertedTrailingSpace = trailingSpace
         discardMirroredComposition()
-        state.didAutoInsertTrailingSpace = insertedTrailingSpace
+        if trailingSpace {
+            recordAutoInsertedTrailingSpace(client: client, expectedCursor: expectedCursor)
+        } else {
+            clearAutoInsertedTrailingSpace()
+        }
+        return true
     }
 
     private func verifiedTypedRegion(client: any IMKTextInput, buffer: String) -> NSRange? {
-        guard let baseline = state.compositionBaseline, baseline.location != NSNotFound else {
+        guard client.supportsProperty(TSMDocumentPropertyTag(kTSMDocumentSupportDocumentAccessPropertyTag)),
+              let baseline = state.compositionBaseline,
+              baseline.location != NSNotFound
+        else {
             return nil
         }
 
@@ -250,7 +315,7 @@ extension InputController {
         after buffer: String,
         trailingSpace: Bool,
     ) -> String? {
-        guard word.lowercased().hasPrefix(buffer.lowercased()) else { return nil }
+        guard word.hasPrefix(buffer) else { return nil }
         return String(word.dropFirst(buffer.count)) + (trailingSpace ? " " : "")
     }
 }

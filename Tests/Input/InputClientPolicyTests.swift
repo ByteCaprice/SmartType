@@ -39,8 +39,6 @@ final class InputClientPolicyTests: XCTestCase {
         let chromiumIDs = [
             "com.google.Chrome",
             "com.google.Chrome.canary",
-            "com.microsoft.edgemac",
-            "com.microsoft.edgemac.dev",
             "org.chromium.Chromium",
             "com.brave.Browser",
             "com.vivaldi.Vivaldi",
@@ -50,6 +48,87 @@ final class InputClientPolicyTests: XCTestCase {
             XCTAssertEqual(
                 InputClientPolicy.mode(forBundleIdentifier: bundleIdentifier, defaults: defaults),
                 .transparentPrediction,
+                bundleIdentifier
+            )
+        }
+    }
+
+    func testEdgeFamilyUsesInlineComposition() {
+        let edgeIDs = [
+            "com.microsoft.edgemac",
+            "com.microsoft.edgemac.beta",
+            "com.microsoft.edgemac.dev",
+            "com.microsoft.edgemac.canary",
+            "com.microsoft.edgemac.Beta",
+            "com.microsoft.edgemac.Canary",
+            "com.microsoft.edgemac.app.mjoklplbddabcmpepnokjaffbmgbkkgg",
+        ]
+        for bundleIdentifier in edgeIDs {
+            XCTAssertEqual(
+                InputClientPolicy.mode(forBundleIdentifier: bundleIdentifier, defaults: defaults),
+                .inline,
+                bundleIdentifier
+            )
+        }
+    }
+
+    func testEdgeFamilyStaysInlineEvenWhenTransparentPredictionOverrideIsConfigured() {
+        // The documented defaults escape hatch must never be able to flip the Edge
+        // family back to transparent prediction: Edge text fields drop modeless
+        // input, so an override would silently reintroduce the no-input failure.
+        defaults.set(
+            [
+                "com.future.BrokenApp",
+                "com.microsoft.edgemac",
+                "com.microsoft.edgemac.app.somepwa",
+            ],
+            forKey: InputClientPolicy.extraTransparentPredictionBundleIDsKey
+        )
+
+        XCTAssertEqual(
+            InputClientPolicy.mode(forBundleIdentifier: "com.microsoft.edgemac", defaults: defaults),
+            .inline
+        )
+        XCTAssertEqual(
+            InputClientPolicy.mode(
+                forBundleIdentifier: "com.microsoft.edgemac.app.somepwa",
+                defaults: defaults
+            ),
+            .inline
+        )
+        // The override must keep working for non-Edge apps.
+        XCTAssertEqual(
+            InputClientPolicy.mode(forBundleIdentifier: "com.future.BrokenApp", defaults: defaults),
+            .transparentPrediction
+        )
+    }
+
+    func testAuditedCustomTextClientsUseStandardInlineComposition() {
+        let bundleIdentifiers = [
+            "com.openai.codex",
+            "com.kangfenmao.CherryStudio",
+            "com.anthropic.claudefordesktop",
+            "com.electron.lark",
+            "notion.id",
+            "dev.openchamber.desktop",
+            "com.youku.mac",
+            "com.netease.163music",
+            "com.anaconda.io",
+            "com.alibaba.DingTalkMac",
+            "com.follow.clash",
+            "io.github.clash-verge-rev.clash-verge-rev",
+            "com.google.GeminiMacOS",
+            "com.tdesktop.Telegram",
+            "com.tencent.xinWeChat",
+            "com.tencent.meeting",
+            "com.microsoft.Word",
+            "com.microsoft.Excel",
+            "com.microsoft.Powerpoint",
+        ]
+        for bundleIdentifier in bundleIdentifiers {
+            XCTAssertEqual(
+                InputClientPolicy.mode(forBundleIdentifier: bundleIdentifier, defaults: defaults),
+                .inline,
                 bundleIdentifier
             )
         }

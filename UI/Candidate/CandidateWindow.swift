@@ -1,6 +1,15 @@
 import AppKit
 import InputMethodKit
 
+@MainActor private final class CandidateBackgroundView: NSVisualEffectView {
+    var appearanceDidChange: (() -> Void)?
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        appearanceDidChange?()
+    }
+}
+
 @MainActor final class CandidateWindow {
     static let shared = CandidateWindow()
 
@@ -13,12 +22,13 @@ import InputMethodKit
 
     private let panel: NSPanel
     private let candidateView: CandidateView
-    private let backgroundView: NSView
+    private let backgroundView: CandidateBackgroundView
 
     // MARK: - Grid state
 
     private var gridState: GridCandidateState?
     private var candidateLayout = CandidateLayout.grid
+    private var hasActiveSelection = false
     /// Cached cursor rect — reused when reflowing the panel on expand / collapse.
     private var lastCursorRect: NSRect = .zero
 
@@ -42,7 +52,7 @@ import InputMethodKit
             defer: true,
         )
         panel.level = .popUpMenu
-        panel.hasShadow = false
+        panel.hasShadow = true
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hidesOnDeactivate = false
@@ -51,7 +61,11 @@ import InputMethodKit
         panel.contentView?.wantsLayer = true
         panel.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
 
-        backgroundView = NSView(frame: panel.contentView!.bounds)
+        backgroundView = CandidateBackgroundView(frame: panel.contentView!.bounds)
+        backgroundView.material = .popover
+        backgroundView.blendingMode = .behindWindow
+        backgroundView.state = .active
+        backgroundView.isEmphasized = false
         backgroundView.wantsLayer = true
         backgroundView.autoresizingMask = [.width, .height]
         panel.contentView?.addSubview(backgroundView)
@@ -67,6 +81,10 @@ import InputMethodKit
             candidateView.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor),
         ])
 
+        backgroundView.appearanceDidChange = { [weak self] in
+            self?.applyTheme()
+        }
+
         applyTheme()
 
         NotificationCenter.default.addObserver(
@@ -80,17 +98,25 @@ import InputMethodKit
     // MARK: - Theme
 
     private func applyTheme() {
-        let theme = ThemeManager.shared.current
+        let themeManager = ThemeManager.shared
+        let theme = themeManager.current
+        let hasCustomBackground = themeManager.isColorCustomized(.backgroundColor)
+        let hasCustomBorder = themeManager.isColorCustomized(.borderColor)
 
-        backgroundView.layer?.backgroundColor = theme.backgroundColor.cgColor
+        backgroundView.effectiveAppearance.performAsCurrentDrawingAppearance {
+            // The system material provides the default tint. Explicit user colors remain opaque overrides.
+            backgroundView.layer?.backgroundColor = hasCustomBackground
+                ? theme.backgroundColor.cgColor
+                : NSColor.clear.cgColor
+            backgroundView.layer?.borderColor = hasCustomBorder
+                ? theme.border.color.cgColor
+                : theme.border.color.withAlphaComponent(0.55).cgColor
+        }
         backgroundView.layer?.cornerRadius = theme.cornerRadius
         backgroundView.layer?.masksToBounds = true
         backgroundView.layer?.borderWidth = theme.border.width
-        backgroundView.layer?.borderColor = theme.border.color.cgColor
 
-        // Clip the window's visual output to the rounded rect so the rectangular
-        // corner areas of the panel frame are fully transparent (no shadow bleed).
-        // panel.hasShadow = false so there is no outer shadow.
+        // Clip the panel content to the rounded rect while retaining the native window shadow.
         let contentLayer = panel.contentView?.layer
         contentLayer?.backgroundColor = NSColor.clear.cgColor
         contentLayer?.cornerRadius = theme.cornerRadius
@@ -115,8 +141,12 @@ import InputMethodKit
             return
         }
 
+        applyTheme()
         let unified = literalText.map { [$0] + candidates } ?? candidates
         candidateLayout = layout
+        // Literal slots are retained for callers that explicitly request one. Normal
+        // typing supplies predictions only and therefore starts without a selection.
+        hasActiveSelection = literalText != nil
         gridState = GridCandidateState(
             columnCount: layout == .vertical ? 1 : Constants.gridMaxVisibleCols,
             hasLiteral: literalText != nil,
@@ -141,18 +171,26 @@ import InputMethodKit
     func hide() {
         panel.orderOut(nil)
         gridState = nil
+        hasActiveSelection = false
     }
 
     // MARK: - Row navigation
 
     /// Expands the grid (if collapsed) and moves the active row down by one.
     func moveActiveRowDown() {
+        if activateSelection() {
+            if candidateLayout == .grid {
+                mutateGrid({ $0.moveRowDown() }, reframe: true)
+            }
+            return
+        }
         mutateGrid({ $0.moveRowDown() }, reframe: true)
     }
 
     /// Moves the active row up by one.
     /// Stays expanded when arriving at row 0; collapses on a second press while at row 0.
     func moveActiveRowUp() {
+        if activateSelection() { return }
         mutateGrid({ state in
             if candidateLayout == .vertical, state.activeRow == 0 { return }
             state.moveRowUp()
@@ -163,6 +201,7 @@ import InputMethodKit
 
     /// Cycles the active column right within the current row (tab / right arrow).
     func moveActiveColumnRight() {
+        if activateSelection() { return }
         mutateGrid({ state in
             if candidateLayout == .vertical {
                 state.moveRowDown()
@@ -174,6 +213,7 @@ import InputMethodKit
 
     /// Cycles the active column left within the current row (left arrow).
     func moveActiveColumnLeft() {
+        if activateSelection() { return }
         mutateGrid({ state in
             if candidateLayout == .vertical {
                 if state.activeRow > 0 { state.moveRowUp() }
@@ -188,12 +228,13 @@ import InputMethodKit
     /// The display-capitalised prediction at the current (activeRow, activeCol) cursor,
     /// or `nil` when the literal slot is selected.
     func selectedCandidate() -> String? {
-        gridState?.selectedPrediction
+        guard hasActiveSelection else { return nil }
+        return gridState?.selectedPrediction
     }
 
     /// 0-based prediction index at the current cursor, or `nil` when the literal slot is selected.
     var selectedPredictionIndex: Int? {
-        guard let gs = gridState else { return nil }
+        guard hasActiveSelection, let gs = gridState else { return nil }
         return gs.predictionIndex(row: gs.activeRow, col: gs.activeCol)
     }
 
@@ -218,6 +259,15 @@ import InputMethodKit
         return gs.hasLiteral && gs.activeRow == 0 && col == 0
     }
 
+    /// Activates the logical cursor without advancing past the first candidate.
+    @discardableResult
+    private func activateSelection() -> Bool {
+        guard gridState != nil, !hasActiveSelection else { return false }
+        hasActiveSelection = true
+        refreshView()
+        return true
+    }
+
     // MARK: - Private helpers
 
     /// Applies a mutation to `gridState` and refreshes the view. When `reframe` is true
@@ -233,7 +283,11 @@ import InputMethodKit
 
     private func refreshView() {
         guard let gs = gridState else { return }
-        candidateView.updateGrid(gs, layout: candidateLayout)
+        candidateView.updateGrid(
+            gs,
+            layout: candidateLayout,
+            showsSelection: hasActiveSelection
+        )
     }
 
     /// Refreshes the view and resizes / repositions the panel to fit the new row count.
@@ -274,12 +328,15 @@ import InputMethodKit
             x: cursorRect.origin.x,
             y: cursorRect.origin.y - panelHeight - Layout.cursorGap,
         )
-        if let screen = NSScreen.main {
+        let screen = NSScreen.screens.first { $0.frame.contains(cursorRect.origin) }
+            ?? NSScreen.main
+        if let screen {
             let frame = screen.visibleFrame
             origin.x = min(max(origin.x, frame.minX), frame.maxX - panelWidth)
             if origin.y < frame.minY {
                 origin.y = cursorRect.maxY + Layout.cursorGap
             }
+            origin.y = min(max(origin.y, frame.minY), frame.maxY - panelHeight)
         }
         return origin
     }

@@ -13,6 +13,8 @@ import XCTest
         state.compositionBaseline = NSRange(location: 3, length: 0)
         state.expectedCursor = 8
         state.compositionClientBundleID = "com.microsoft.edgemac"
+        state.autoInsertedSpaceClientBundleID = "com.microsoft.edgemac"
+        state.autoInsertedSpaceExpectedCursor = 9
 
         state.reset()
 
@@ -23,6 +25,8 @@ import XCTest
         XCTAssertNil(state.compositionBaseline)
         XCTAssertNil(state.expectedCursor)
         XCTAssertNil(state.compositionClientBundleID)
+        XCTAssertNil(state.autoInsertedSpaceClientBundleID)
+        XCTAssertNil(state.autoInsertedSpaceExpectedCursor)
     }
 
     func testCompositionBufferDefaultsToEmpty() {

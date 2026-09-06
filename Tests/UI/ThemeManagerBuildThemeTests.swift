@@ -28,8 +28,8 @@ import XCTest
         XCTAssertEqual(manager.current.border.width, ThemeBorder.standardWidth)
     }
 
-    func testDefaultHighlightOpacityIsZero() {
-        XCTAssertEqual(manager.highlightOpacity, 0)
+    func testDefaultHighlightOpacityUsesNativeSelectionFill() {
+        XCTAssertEqual(manager.highlightOpacity, 0.82, accuracy: 0.001)
     }
 
     // MARK: - Border always has standard width
@@ -49,13 +49,28 @@ import XCTest
         XCTAssertEqual(manager.hexString(for: .borderColor), "#112233")
     }
 
+    func testColorCustomizationTracksExplicitOverridesAndReset() {
+        XCTAssertFalse(manager.isColorCustomized(.backgroundColor))
+
+        manager.setColor("#112233", for: .backgroundColor)
+        XCTAssertTrue(manager.isColorCustomized(.backgroundColor))
+
+        manager.resetToDefaults()
+        XCTAssertFalse(manager.isColorCustomized(.backgroundColor))
+    }
+
+    func testInvalidStoredColorIsNotTreatedAsCustomization() {
+        defaults.set("not-a-color", forKey: ThemeColorKey.backgroundColor.rawValue)
+
+        XCTAssertFalse(manager.isColorCustomized(.backgroundColor))
+    }
+
     // MARK: - Invalid hex handling
 
     func testInvalidHexIsRejectedAndDefaultPreserved() throws {
         manager.setColor("not-a-hex", for: .backgroundColor)
         // setColor rejects invalid hex — the default colour remains.
-        let defaultColor = try XCTUnwrap(NSColor(hexString: ThemeColorKey.backgroundColor.defaultHex))
-        XCTAssertEqual(manager.current.backgroundColor, defaultColor)
+        XCTAssertEqual(manager.current.backgroundColor, Theme.defaultTheme.backgroundColor)
     }
 
     func testValidHexIsApplied() throws {
@@ -147,5 +162,41 @@ import XCTest
         manager.setColor("#FF0000", for: .borderColor)
         let after = manager.current.border.color
         XCTAssertNotEqual(before, after)
+    }
+
+    // MARK: - Stored values vs. semantic defaults
+
+    // `buildTheme` reads stored hex directly from UserDefaults, so values written
+    // by anything other than `setColor` (older app versions, synced or hand-edited
+    // defaults) also reach the fallback paths.
+
+    func testStoredValidHexOverridesSemanticDefaultForEveryKey() throws {
+        // A valid stored hex must win over the semantic default for every key —
+        // custom stored colours override the macOS-coordinated defaults.
+        for key in ThemeColorKey.allCases {
+            defaults.set("#010203", forKey: key.rawValue)
+        }
+        let stored = try XCTUnwrap(NSColor(hexString: "#010203"))
+
+        let m = ThemeManager(defaults: defaults)
+        for key in ThemeColorKey.allCases {
+            XCTAssertEqual(m.current.color(for: key), stored,
+                           "\(key.rawValue): stored hex must override the semantic default")
+        }
+    }
+
+    func testStoredInvalidHexFallsBackToSemanticDefaultForEveryKey() {
+        // An unparseable hex stored directly in UserDefaults (bypassing setColor's
+        // validation) must fall back to the semantic default — not the legacy
+        // defaultHex palette and not a crash.
+        for key in ThemeColorKey.allCases {
+            defaults.set("not-a-hex", forKey: key.rawValue)
+        }
+
+        let m = ThemeManager(defaults: defaults)
+        for key in ThemeColorKey.allCases {
+            XCTAssertEqual(m.current.color(for: key), Theme.defaultTheme.color(for: key),
+                           "\(key.rawValue): invalid stored hex must fall back to the semantic default")
+        }
     }
 }

@@ -6,9 +6,11 @@ import os
 extension InputController {
     // MARK: - IMKInputController Overrides
 
-    override func activateServer(_: Any!) {
+    override func activateServer(_ sender: Any!) {
+        let client = sender as? (any IMKTextInput)
         MainActor.assumeIsolated {
             resetState()
+            client?.overrideKeyboard(withKeyboardNamed: "com.apple.keylayout.US")
         }
     }
 

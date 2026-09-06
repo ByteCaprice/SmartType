@@ -155,22 +155,35 @@ extension InputController {
         // `slotIndex` is the 0-based column of the active grid row.
         if CandidateWindow.shared.isLiteralAt(gridColumn: slotIndex) {
             commitWord(state.compositionBuffer, client: client)
-        } else if let predIdx = CandidateWindow.shared.predictionIndexAt(gridColumn: slotIndex) {
+            return true
+        }
+        if let predIdx = CandidateWindow.shared.predictionIndexAt(gridColumn: slotIndex),
+           predIdx < state.currentPredictions.count
+        {
             keyHandler.handleCandidateSelection(
                 predictionIndex: predIdx,
                 controller: self,
                 client: client,
             )
+            return true
         }
-        // Empty cell → do nothing (not enough predictions to fill that slot).
-        return true
+
+        // Empty cells are not candidate shortcuts. End the composition and let the
+        // client receive the digit normally.
+        commitCompositionBuffer(client: client)
+        return false
     }
 
     private func handleCharacterInput(_ characters: String?, client: any IMKTextInput) -> Bool {
-        guard let char = characters?.first else { return false }
+        guard let characters, characters.count == 1, let char = characters.first else {
+            if characters != nil, !state.compositionBuffer.isEmpty {
+                commitCompositionBuffer(client: client)
+            }
+            return false
+        }
 
         if char.isLetter {
-            state.didAutoInsertTrailingSpace = false
+            clearAutoInsertedTrailingSpace()
             state.compositionBuffer.append(char)
             updateMarkedText(client: client)
             updatePredictions(client: client)
@@ -206,26 +219,50 @@ extension InputController {
         if state.didAutoInsertTrailingSpace {
             if let replacementRange = autoInsertedSpaceRange(client: client) {
                 client.insertText(charStr, replacementRange: replacementRange)
-                state.didAutoInsertTrailingSpace = false
+                clearAutoInsertedTrailingSpace()
                 return true
             }
         }
 
         client.insertText(charStr, replacementRange: Constants.replacementNotFound)
-        state.didAutoInsertTrailingSpace = false
+        clearAutoInsertedTrailingSpace()
         return true
     }
 
     /// Returns the range of the auto-inserted trailing space preceding the cursor, or `nil` if not found.
-    private func autoInsertedSpaceRange(client: any IMKTextInput) -> NSRange? {
-        let cursorPos = client.selectedRange().location
-        guard cursorPos != NSNotFound, cursorPos > 0 else { return nil }
+    func autoInsertedSpaceRange(client: any IMKTextInput) -> NSRange? {
+        let selection = client.selectedRange()
+        guard state.autoInsertedSpaceClientBundleID == client.bundleIdentifier(),
+              let expectedCursor = state.autoInsertedSpaceExpectedCursor,
+              selection.location == expectedCursor,
+              selection.length == 0,
+              expectedCursor > 0
+        else {
+            return nil
+        }
 
-        let range = NSRange(location: cursorPos - 1, length: 1)
+        let range = NSRange(location: expectedCursor - 1, length: 1)
         let precedingChar = client.attributedSubstring(from: range)?.string ?? ""
         guard precedingChar == " " else { return nil }
 
         return range
+    }
+
+    func recordAutoInsertedTrailingSpace(
+        client: any IMKTextInput,
+        expectedCursor: Int? = nil,
+    ) {
+        let selection = client.selectedRange()
+        state.didAutoInsertTrailingSpace = true
+        state.autoInsertedSpaceClientBundleID = client.bundleIdentifier()
+        state.autoInsertedSpaceExpectedCursor = expectedCursor
+            ?? (selection.location == NSNotFound ? nil : selection.location)
+    }
+
+    func clearAutoInsertedTrailingSpace() {
+        state.didAutoInsertTrailingSpace = false
+        state.autoInsertedSpaceClientBundleID = nil
+        state.autoInsertedSpaceExpectedCursor = nil
     }
 
     private func handleBackspace(client: any IMKTextInput) -> Bool {

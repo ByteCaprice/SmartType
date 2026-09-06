@@ -52,6 +52,7 @@ struct GridCandidateState: Sendable {
     /// Returns `nil` for the literal cell (row 0, col 0 when `hasLiteral`) or for cells
     /// beyond the loaded buffer.
     func predictionIndex(row: Int, col: Int) -> Int? {
+        guard row >= 0, col >= 0, col < columnCount else { return nil }
         if hasLiteral, row == 0, col == 0 { return nil } // literal slot
         let idx = row * columnCount + col
         return idx < predictions.count ? idx : nil

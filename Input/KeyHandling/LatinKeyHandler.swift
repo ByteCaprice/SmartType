@@ -1,8 +1,7 @@
 import AppKit
 import InputMethodKit
 
-/// English input shows a literal slot (the raw buffer) as the first candidate,
-/// and inserts a trailing space after committed words.
+/// English candidate selection and trailing-space behavior.
 @MainActor struct LatinKeyHandler {
     func handleCandidateSelection(
         predictionIndex: Int,
@@ -18,8 +17,6 @@ import InputMethodKit
     ) -> Bool {
         let state = controller.state
 
-        // `selectedCandidate()` returns nil when the literal slot is selected, so
-        // the literal path falls through to the buffer guard below.
         if CandidateWindow.shared.isVisible,
            let selected = CandidateWindow.shared.selectedCandidate()
         {
@@ -39,20 +36,18 @@ import InputMethodKit
         controller: InputController,
         client: any IMKTextInput,
     ) -> Bool {
-        guard CandidateWindow.shared.isVisible else { return false }
+        guard CandidateWindow.shared.isVisible else {
+            if !controller.state.compositionBuffer.isEmpty {
+                controller.commitCompositionBuffer(client: client)
+            }
+            return false
+        }
 
-        let word = CandidateWindow.shared.isLiteralSelected
-            ? controller.state.compositionBuffer
-            : CandidateWindow.shared.selectedCandidate()
-        if let word { controller.commitWord(word, client: client) }
+        let word = CandidateWindow.shared.selectedCandidate()
+            ?? controller.state.compositionBuffer
+        if !word.isEmpty {
+            controller.commitWord(word, trailingSpace: false, client: client)
+        }
         return true
-    }
-
-    func literalText(compositionBuffer: String) -> String? {
-        compositionBuffer
-    }
-
-    func unifiedPredictions(from rawWords: [String], compositionBuffer: String) -> [String] {
-        [compositionBuffer] + rawWords
     }
 }

@@ -10,12 +10,11 @@ extension InputController {
             return
         }
 
-        let (unified, display) = fetchCompletions(limit: Constants.spellCompletionLimit)
+        let (predictions, display) = fetchCompletions(limit: Constants.spellCompletionLimit)
 
-        state.currentPredictions = unified
+        state.currentPredictions = predictions
         CandidateWindow.shared.show(
             candidates: display,
-            literalText: keyHandler.literalText(compositionBuffer: state.compositionBuffer),
             layout: ThemeManager.shared.candidateLayout,
             client: client,
         )
@@ -23,19 +22,14 @@ extension InputController {
 
     // MARK: - Private
 
-    /// Fetches completions and returns both the unified predictions
-    /// array (for `state.currentPredictions`) and the display-capitalised array (for
-    /// `CandidateWindow`).
-    private func fetchCompletions(limit: Int) -> (unified: [String], display: [String]) {
+    /// Fetches completions in their original and display-capitalised forms.
+    private func fetchCompletions(limit: Int) -> (predictions: [String], display: [String]) {
         let rawWords = spellPredictor.completions(
             prefix: state.compositionBuffer,
             limit: min(limit, Constants.spellCompletionLimit),
         )
-        let unified = keyHandler.unifiedPredictions(
-            from: rawWords, compositionBuffer: state.compositionBuffer,
-        )
         let display = displayWords(from: rawWords)
-        return (unified, display)
+        return (rawWords, display)
     }
 
     /// Maps raw (original-case) predictions to display-capitalised strings by matching

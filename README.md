@@ -129,9 +129,9 @@ macOS → IMKServer → InputController
 
 SwiftType handles three kinds of text clients, selected automatically by `InputClientPolicy`:
 
-- **Inline** (default): marked-text preedit with candidates — native apps like TextEdit, Safari, Xcode.
+- **Inline** (default): marked-text preedit with candidates — native apps like TextEdit, Safari, Xcode, Electron/Qt apps, plus the Microsoft Edge family and its installed web apps, whose text fields drop modeless input.
 - **Passthrough**: every keystroke goes to the app untouched — terminals and VS Code, whose line editors fight inline preedit.
-- **Transparent prediction**: Chromium/CEF apps (Chrome, Edge, Brave, Vivaldi, Opera, WeCom/企业微信) defer Caps Lock input-source switching while marked text is active, so SwiftType keeps no composition there — letters land in the app directly and only the completion suffix is inserted when you pick a candidate.
+- **Transparent prediction**: Other Chromium/CEF apps (Chrome, Brave, Vivaldi, Opera, WeCom/企业微信) defer Caps Lock input-source switching while marked text is active, so SwiftType keeps no composition there — letters land in the app directly and only the completion suffix is inserted when you pick a candidate.
 
 If a newly released app shows the same broken Caps Lock switching, enable transparent prediction for it without rebuilding:
 
@@ -143,7 +143,7 @@ Caps Lock (中/英) switching to other input methods is supported system-wide vi
 
 ### Concurrency
 
-Application state is `@MainActor`-isolated under **Swift 6 strict concurrency**. InputMethodKit delivers callbacks on the main thread; the controller verifies that boundary before accessing composition state, with no background prediction work or async tasks.
+Application state is `@MainActor`-isolated under **Swift 6 strict concurrency**. InputMethodKit delivers callbacks on the main thread; the controller verifies that boundary before accessing composition state. Chromium candidate refreshes are asynchronously coalesced on the main actor so key handling can return to the browser before spell-checking and UI work begin.
 
 ---
 
@@ -188,6 +188,7 @@ Produces `dist/SwiftType-<version>.pkg` — a flat installer that copies the app
 | Problem | Fix |
 |---|---|
 | SwiftType not in Input Sources | Run `./scripts/install.sh`, add SwiftType in **System Settings → Keyboard**, then log out and back in |
-| Old binary after rebuild | Run `./scripts/install.sh`, then log out and back in |
+| An app cannot type after installing or rebuilding SwiftType | Fully quit and reopen that app so it reconnects to the new input-method process; if that fails, log out and back in |
+| Old binary after rebuild | Run `./scripts/install.sh`, quit and reopen apps that were running during installation, then log out and back in if needed |
 | Duplicate entries | `sudo rm -rf /Library/Input\ Methods/SwiftType.app` then re-login |
 | Gatekeeper error | Right-click → Open, or run `xattr -dr com.apple.quarantine ~/Library/Input\ Methods/SwiftType.app` |

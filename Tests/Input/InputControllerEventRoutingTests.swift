@@ -85,6 +85,12 @@ final class InputControllerEventRoutingTests: XCTestCase {
 
     // MARK: - switch-away safety net
 
+    func testActivateServerUsesUSKeyboardForPassthroughKeys() {
+        controller.activateServer(client)
+
+        XCTAssertEqual(client.overriddenKeyboardNames, ["com.apple.keylayout.US"])
+    }
+
     func testDeactivateServerCommitsOpenComposition() {
         // When macOS switches to the Chinese input method, the session deactivates
         // and the in-progress buffer must be committed, not lost.
@@ -139,6 +145,171 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertEqual(client.insertedText, ["hel"], "The open composition is committed before passthrough")
     }
 
+    func testMultiCharacterEventIsPassedThroughWithoutTruncation() throws {
+        let event = try Self.keyDownEvent(characters: "ab", keyCode: 0)
+
+        let handled = controller.handle(event, client: client)
+
+        XCTAssertFalse(handled)
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(client.markedText.isEmpty)
+    }
+
+    func testMultiCharacterEventWithOpenCompositionCommitsAndPassesThrough() throws {
+        controller.state.compositionBuffer = "hel"
+        let event = try Self.keyDownEvent(characters: "ab", keyCode: 0)
+
+        let handled = controller.handle(event, client: client)
+
+        XCTAssertFalse(handled)
+        XCTAssertEqual(
+            client.insertedText,
+            ["hel"],
+            "The open composition is committed whole, never truncated to the first character"
+        )
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testEmptyCandidateDigitCommitsCompositionAndPassesThrough() throws {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: "7", keyCode: KeyCode.key7.rawValue)
+
+        let handled = controller.handle(event, client: client)
+
+        XCTAssertFalse(handled)
+        XCTAssertEqual(client.insertedText, ["hel"])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testCandidateDigitSelectsFirstPredictionWithoutExplicitNavigation() throws {
+        // With the literal slot removed, digit 1 must map directly to the first
+        // prediction — no highlighted candidate is required beforehand.
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: "1", keyCode: KeyCode.key1.rawValue)
+
+        let handled = controller.handle(event, client: client)
+
+        XCTAssertTrue(handled)
+        XCTAssertEqual(client.insertedText, ["hello "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+        XCTAssertFalse(CandidateWindow.shared.isVisible, "the window must hide after committing")
+    }
+
+    func testReturnWithoutSelectionCommitsTypedTextWithoutTrailingSpace() throws {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: "\r", keyCode: KeyCode.returnKey.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["hel"])
+        XCTAssertFalse(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testReturnWithHiddenCandidateWindowCommitsBeforePassingThrough() throws {
+        controller.state.compositionBuffer = "xkq"
+        let event = try Self.keyDownEvent(characters: "\r", keyCode: KeyCode.returnKey.rawValue)
+
+        XCTAssertFalse(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["xkq"])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testResetStateCancelsPendingPredictionUpdate() async {
+        let pending = Task { @MainActor in
+            _ = try? await Task.sleep(for: .seconds(5))
+        }
+        controller.pendingTransparentPredictionUpdate = pending
+
+        controller.resetState()
+
+        XCTAssertNil(controller.pendingTransparentPredictionUpdate)
+        XCTAssertTrue(pending.isCancelled)
+    }
+
+    func testResetStateHidesCandidateWindowAndClearsPredictions() {
+        // resetState previously hid the window explicitly; it now routes through
+        // cancelPredictions(), which must preserve that observable behavior.
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: client
+        )
+        XCTAssertTrue(CandidateWindow.shared.isVisible)
+
+        controller.resetState()
+
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+        XCTAssertTrue(controller.state.currentPredictions.isEmpty)
+        XCTAssertTrue(controller.state.compositionBuffer.isEmpty)
+    }
+
+    func testSpaceWithoutSelectionCommitsTypedTextWithTrailingSpace() throws {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["hel "])
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testReturnCommitsSelectedPredictionWithoutTrailingSpace() throws {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: client
+        )
+        CandidateWindow.shared.moveActiveColumnRight()
+        let event = try Self.keyDownEvent(characters: "\r", keyCode: KeyCode.returnKey.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["hello"])
+        XCTAssertFalse(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testSpaceStillCommitsSelectedPredictionWithTrailingSpace() throws {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: client
+        )
+        CandidateWindow.shared.moveActiveColumnRight()
+        let event = try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["hello "])
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
     func testEventsForSwiftTypesOwnWindowsArePassedThrough() throws {
         // Typing in SwiftType's own windows (e.g. Settings search fields) must not
         // start a composition.
@@ -165,6 +336,27 @@ final class InputControllerEventRoutingTests: XCTestCase {
     func testVSCodeDefaultsToPassthroughButXcodeDoesNot() {
         XCTAssertTrue(InputController.terminalBundleIdentifiers.contains("com.microsoft.VSCode"))
         XCTAssertFalse(InputController.terminalBundleIdentifiers.contains("com.apple.dt.Xcode"))
+    }
+
+    func testEdgeKeyEventsUseInlineComposition() throws {
+        client.bundleIdentifierValue = "com.microsoft.edgemac"
+        let event = try Self.keyDownEvent(characters: "a", keyCode: 0)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(controller.state.compositionBuffer, "a")
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(client.markedText, ["a"])
+    }
+
+    func testEdgeCapsLockCommitsInlineCompositionWhenDelivered() throws {
+        client.bundleIdentifierValue = "com.microsoft.edgemac"
+        _ = controller.handle(try Self.keyDownEvent(characters: "a", keyCode: 0), client: client)
+        let event = Self.flagsChangedEvent(keyCode: Self.capsLockKeyCode, flags: .maskAlphaShift)
+
+        XCTAssertFalse(controller.handle(event, client: client))
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertEqual(client.insertedText, ["a"])
+        XCTAssertEqual(client.markedText, ["a", ""])
     }
 
     // MARK: - Event synthesis helpers
@@ -216,6 +408,7 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
 
     private(set) var insertedText: [String] = []
     private(set) var markedText: [String] = []
+    private(set) var overriddenKeyboardNames: [String] = []
 
     func insertText(_ string: Any, replacementRange _: NSRange) {
         insertedText.append(stringValue(string))
@@ -250,7 +443,9 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     ) -> [AnyHashable: Any]? { [:] }
 
     func validAttributesForMarkedText() -> [Any] { [] }
-    func overrideKeyboard(withKeyboardNamed _: String!) {}
+    func overrideKeyboard(withKeyboardNamed keyboardName: String!) {
+        overriddenKeyboardNames.append(keyboardName)
+    }
     func selectMode(_: String!) {}
     func supportsUnicode() -> Bool { true }
     func bundleIdentifier() -> String! { bundleIdentifierValue }

@@ -8,9 +8,12 @@ extension SettingsWindowController {
 
         let stack = makeContentStack()
 
+        stack.addArrangedSubview(makeSectionLabel("Colors"))
         for key in ThemeColorKey.allCases {
             stack.addArrangedSubview(makeColorRow(for: key))
         }
+        stack.setCustomSpacing(Layout.sectionSpacing, after: stack.arrangedSubviews.last!)
+        stack.addArrangedSubview(makeSectionLabel("Candidate Window"))
         stack.addArrangedSubview(makeHighlightOpacityRow())
         stack.addArrangedSubview(makeCandidateLayoutRow())
         stack.addArrangedSubview(makeCandidateCountRow())
@@ -25,10 +28,11 @@ extension SettingsWindowController {
 
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: container.topAnchor, constant: Layout.edgeInset),
-            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: Layout.edgeInset),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -Layout.edgeInset),
 
             resetButton.topAnchor.constraint(equalTo: stack.bottomAnchor, constant: Layout.edgeInset),
-            resetButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            resetButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -Layout.edgeInset),
             resetButton.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -Layout.edgeInset),
         ])
 
@@ -38,8 +42,7 @@ extension SettingsWindowController {
     // MARK: - Row Builders
 
     private func makeColorRow(for key: ThemeColorKey) -> NSView {
-        let hex = ThemeManager.shared.hexString(for: key)
-        let color = NSColor(hexString: hex) ?? NSColor(hexString: key.defaultHex)!
+        let color = ThemeManager.shared.current.color(for: key)
         let well = makeColorWell(color: color, action: #selector(colorWellChanged(_:)))
         well.identifier = NSUserInterfaceItemIdentifier(key.rawValue)
         colorWells[key] = well
@@ -56,6 +59,8 @@ extension SettingsWindowController {
                                           action: #selector(highlightOpacityChanged(_:)))
         highlightOpacitySlider.translatesAutoresizingMaskIntoConstraints = false
         highlightOpacitySlider.widthAnchor.constraint(equalToConstant: Layout.sliderWidth).isActive = true
+        highlightOpacitySlider.setAccessibilityLabel("Highlight Opacity")
+        highlightOpacitySlider.setAccessibilityValue(formatOpacity(initialValue))
 
         highlightOpacityLabel = NSTextField(labelWithString: formatOpacity(initialValue))
         highlightOpacityLabel.font = .monospacedSystemFont(ofSize: Layout.headerFontSize, weight: .regular)
@@ -72,6 +77,7 @@ extension SettingsWindowController {
         let index = ThemeManager.gridColsOptions.firstIndex(of: ThemeManager.shared.gridCols) ?? 2
         candidateCountPopUp = makePopUp(items: ThemeManager.gridColsOptions.map(String.init), selectedIndex: index, action: #selector(candidateCountChanged(_:)))
         candidateCountPopUp.isEnabled = ThemeManager.shared.candidateLayout == .grid
+        candidateCountPopUp.toolTip = "Applies to Grid layout"
         return makeSettingsRow(label: "Grid Columns", control: candidateCountPopUp)
     }
 
@@ -103,6 +109,7 @@ extension SettingsWindowController {
         let value = CGFloat(sender.doubleValue)
         ThemeManager.shared.setHighlightOpacity(value)
         highlightOpacityLabel?.stringValue = formatOpacity(value)
+        sender.setAccessibilityValue(formatOpacity(value))
     }
 
     @objc private func candidateCountChanged(_ sender: NSPopUpButton) {
@@ -134,13 +141,13 @@ extension SettingsWindowController {
 
     func syncCustomizationControls() {
         for key in ThemeColorKey.allCases {
-            let hex = ThemeManager.shared.hexString(for: key)
-            colorWells[key]?.color = NSColor(hexString: hex) ?? NSColor(hexString: key.defaultHex)!
+            colorWells[key]?.color = ThemeManager.shared.current.color(for: key)
         }
 
         let opacity = ThemeManager.shared.highlightOpacity
         highlightOpacitySlider?.doubleValue = Double(opacity)
         highlightOpacityLabel?.stringValue = formatOpacity(opacity)
+        highlightOpacitySlider?.setAccessibilityValue(formatOpacity(opacity))
 
         let countIndex = ThemeManager.gridColsOptions.firstIndex(of: ThemeManager.shared.gridCols) ?? 2
         candidateCountPopUp?.selectItem(at: countIndex)

@@ -41,6 +41,41 @@ import XCTest
         XCTAssertNil(state.predictionIndex(row: 0, col: 0))
     }
 
+    func testPredictionIndexRejectsColumnsOutsideConfiguredGrid() {
+        let state = makeState(cols: 4, predictions: preds(5))
+
+        XCTAssertNil(state.predictionIndex(row: 0, col: 4))
+        XCTAssertNil(state.predictionIndex(row: 0, col: -1))
+    }
+
+    func testPredictionIndexRejectsNegativeRows() {
+        let state = makeState(predictions: preds(5))
+
+        XCTAssertNil(state.predictionIndex(row: -1, col: 0))
+    }
+
+    func testPredictionIndexRejectsColumnOverflowOnLaterRows() {
+        // With 12 predictions in a 4-column grid, row 1 occupies flat indices 4–7.
+        // Col 4 of row 1 is not a rendered cell: it must not silently resolve to
+        // the first cell of row 2 (flat index 8) the way the unguarded arithmetic did.
+        let state = makeState(cols: 4, predictions: preds(12))
+
+        XCTAssertEqual(state.predictionIndex(row: 1, col: 3), 7)
+        XCTAssertNil(state.predictionIndex(row: 1, col: 4))
+        XCTAssertNil(state.predictionIndex(row: 1, col: -1))
+    }
+
+    func testPredictionIndexNegativeRowsNeverYieldNegativeIndex() {
+        // Negative rows previously produced negative flat indices that passed the
+        // `idx < count` check and would crash on `predictions[idx]` subscripting.
+        let state = makeState(cols: 4, hasLiteral: true, predictions: preds(5))
+
+        for row in [-1, -2, -100] {
+            XCTAssertNil(state.predictionIndex(row: row, col: 0), "row \(row), col 0")
+            XCTAssertNil(state.predictionIndex(row: row, col: 3), "row \(row), col 3")
+        }
+    }
+
     func testSelectedPredictionIsNilWhenEmpty() {
         let state = makeState(predictions: [])
         XCTAssertNil(state.selectedPrediction)

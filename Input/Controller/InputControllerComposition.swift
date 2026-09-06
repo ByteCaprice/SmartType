@@ -52,11 +52,19 @@ extension InputController {
         cancelPredictions()
     }
 
-    func commitWord(_ word: String, client: any IMKTextInput) {
-        let committed = word + " "
+    func commitWord(
+        _ word: String,
+        trailingSpace: Bool = true,
+        client: any IMKTextInput,
+    ) {
+        let committed = trailingSpace ? word + " " : word
         client.insertText(committed, replacementRange: Constants.replacementNotFound)
         state.compositionBuffer = ""
-        state.didAutoInsertTrailingSpace = true
+        if trailingSpace {
+            recordAutoInsertedTrailingSpace(client: client)
+        } else {
+            clearAutoInsertedTrailingSpace()
+        }
         cancelPredictions()
     }
 

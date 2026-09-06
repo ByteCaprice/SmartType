@@ -121,7 +121,7 @@ import XCTest
         XCTAssertEqual(manager.highlightOpacity, 0.42, accuracy: 0.001)
     }
 
-    func testHighlightOpacityDefaultIsZero() {
+    func testHighlightOpacityDefaultUsesNativeSelectionFill() {
         XCTAssertEqual(manager.highlightOpacity, ThemeManager.defaultHighlightOpacity,
                        accuracy: 0.001)
     }

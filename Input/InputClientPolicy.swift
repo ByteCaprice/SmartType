@@ -31,6 +31,11 @@ enum InputClientPolicy {
         if bundleIdentifier == Bundle.main.bundleIdentifier {
             return .passthrough
         }
+        if bundleIdentifier == "com.microsoft.edgemac"
+            || bundleIdentifier.hasPrefix("com.microsoft.edgemac.")
+        {
+            return .inline
+        }
         if passthroughBundleIdentifiers.contains(bundleIdentifier) {
             return .passthrough
         }
@@ -59,7 +64,6 @@ enum InputClientPolicy {
     }
 
     private static let transparentPredictionBundleIdentifiers: Set<String> = [
-        "com.microsoft.edgemac",
         "com.tencent.WeWorkMac",
         "com.google.Chrome",
         "org.chromium.Chromium",
@@ -71,7 +75,6 @@ enum InputClientPolicy {
 
     private static let transparentPredictionBundlePrefixes = [
         "88L2Q4487U.com.tencent.wework",
-        "com.microsoft.edgemac",
         "com.google.Chrome",
         "com.brave.Browser",
     ]
@@ -79,7 +82,6 @@ enum InputClientPolicy {
     private static let chromiumFamilyMarkers = [
         "chrome",
         "chromium",
-        "edgemac",
         "brave.browser",
         "vivaldi",
         "operasoftware.opera",

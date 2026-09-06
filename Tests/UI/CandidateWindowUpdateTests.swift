@@ -39,6 +39,8 @@ import XCTest
 
     func testHideResetsSelectedCandidate() {
         CandidateWindow.shared.show(candidates: ["a", "b"], client: nil)
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
+        CandidateWindow.shared.moveActiveColumnRight()
         XCTAssertNotNil(CandidateWindow.shared.selectedCandidate())
         CandidateWindow.shared.hide()
         XCTAssertNil(CandidateWindow.shared.selectedCandidate())
@@ -76,7 +78,7 @@ import XCTest
         // Show without literal replaces the state
         CandidateWindow.shared.show(candidates: ["b", "c"], client: nil)
         XCTAssertFalse(CandidateWindow.shared.isLiteralSelected)
-        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "b")
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
     }
 
 }

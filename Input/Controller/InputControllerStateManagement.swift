@@ -6,11 +6,13 @@ extension InputController {
     // MARK: - State Management
 
     func resetState() {
+        cancelPredictions()
         state.reset()
-        CandidateWindow.shared.hide()
     }
 
     func cancelPredictions() {
+        pendingTransparentPredictionUpdate?.cancel()
+        pendingTransparentPredictionUpdate = nil
         state.currentPredictions = []
         CandidateWindow.shared.hide()
     }

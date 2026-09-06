@@ -9,7 +9,7 @@ import XCTest
     // MARK: - ThemeBorder
 
     func testThemeBorderStandardWidthDefault() {
-        XCTAssertEqual(ThemeBorder.standardWidth, 2)
+        XCTAssertEqual(ThemeBorder.standardWidth, 1)
     }
 
     func testThemeBorderMemberwiseInit() {
@@ -20,15 +20,15 @@ import XCTest
     // MARK: - Theme.defaultTheme
 
     func testDefaultThemeCornerRadius() {
-        XCTAssertEqual(Theme.defaultTheme.cornerRadius, 6)
+        XCTAssertEqual(Theme.defaultTheme.cornerRadius, 10)
     }
 
-    func testDefaultThemeFontWeightIsMedium() {
-        XCTAssertEqual(Theme.defaultTheme.fontWeight, .medium)
+    func testDefaultThemeFontWeightIsRegular() {
+        XCTAssertEqual(Theme.defaultTheme.fontWeight, .regular)
     }
 
-    func testDefaultThemeNumberFontWeightIsMedium() {
-        XCTAssertEqual(Theme.defaultTheme.numberFontWeight, .medium)
+    func testDefaultThemeNumberFontWeightIsRegular() {
+        XCTAssertEqual(Theme.defaultTheme.numberFontWeight, .regular)
     }
 
     func testDefaultThemeWordFontSize() {

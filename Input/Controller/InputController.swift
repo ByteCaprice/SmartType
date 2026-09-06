@@ -16,15 +16,14 @@ import os
 /// | `InputClientPolicy` | Per-app mode: passthrough, inline, or transparent prediction |
 /// | `InputControllerTransparentPrediction` | Chromium/CEF passthrough prediction without marked text |
 /// | `InputControllerComposition` | `commitCompositionBuffer`, `commitWord`, `selectCandidateByIndex`, marked text |
-/// | `LatinKeyHandler` | English literal slot and trailing-space handling |
+/// | `LatinKeyHandler` | English candidate and trailing-space handling |
 ///
 /// ## Composition state
 ///
 /// The user builds a word character by character.
 /// - `state.compositionBuffer` accumulates the raw keystrokes (e.g. `"hel"`).
-/// - `state.currentPredictions` holds the unified candidate array. The first element is
-///   the composition buffer itself (literal slot) and subsequent elements are spell-checker
-///   completions.
+/// - `state.currentPredictions` holds spell-checker completions only. The raw composition
+///   remains at the insertion point and is not duplicated in the candidate window.
 /// - Marked text is shown in the active text field via `setMarkedText`.
 ///
 /// ## Threading
@@ -42,7 +41,6 @@ class InputController: IMKInputController, @unchecked Sendable {
     }
 
     static let markedTextAttributes: [NSAttributedString.Key: Any] = [
-        .underlineStyle: NSUnderlineStyle.single.rawValue,
         .foregroundColor: NSColor.textColor,
         .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
     ]
@@ -53,6 +51,7 @@ class InputController: IMKInputController, @unchecked Sendable {
     lazy var spellPredictor = SpellCheckPredictor()
     let keyHandler = LatinKeyHandler()
     let typingRules = EnglishTypingRules.shared
+    var pendingTransparentPredictionUpdate: Task<Void, Never>?
 
     // MARK: - Init
 

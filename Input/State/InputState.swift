@@ -9,6 +9,8 @@ import Foundation
     var compositionBaseline: NSRange?
     var expectedCursor: Int?
     var compositionClientBundleID: String?
+    var autoInsertedSpaceClientBundleID: String?
+    var autoInsertedSpaceExpectedCursor: Int?
 
     func reset() {
         compositionBuffer = ""
@@ -18,5 +20,7 @@ import Foundation
         compositionBaseline = nil
         expectedCursor = nil
         compositionClientBundleID = nil
+        autoInsertedSpaceClientBundleID = nil
+        autoInsertedSpaceExpectedCursor = nil
     }
 }

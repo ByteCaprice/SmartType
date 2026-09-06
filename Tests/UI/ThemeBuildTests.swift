@@ -26,12 +26,19 @@ import XCTest
     }
 
     func testDefaultCornerRadius() {
-        XCTAssertEqual(manager.current.cornerRadius, 6)
+        XCTAssertEqual(manager.current.cornerRadius, 10)
     }
 
     func testDefaultFontSizes() {
         XCTAssertEqual(manager.current.wordFontSize, 14)
         XCTAssertEqual(manager.current.numberFontSize, 11)
+    }
+
+    func testDefaultsUseSystemSemanticColors() {
+        XCTAssertEqual(manager.current.backgroundColor, .windowBackgroundColor)
+        XCTAssertEqual(manager.current.normalTextColor, .labelColor)
+        XCTAssertEqual(manager.current.numberLabelColor, .secondaryLabelColor)
+        XCTAssertEqual(manager.current.highlightColor, .controlAccentColor)
     }
 
     // MARK: - Border always uses standard width
@@ -72,8 +79,8 @@ import XCTest
 
     // MARK: - highlightOpacity
 
-    func testDefaultHighlightOpacityIsZero() {
-        XCTAssertEqual(manager.highlightOpacity, 0, accuracy: 0.001)
+    func testDefaultHighlightOpacityUsesNativeSelectionFill() {
+        XCTAssertEqual(manager.highlightOpacity, 0.82, accuracy: 0.001)
     }
 
     func testHighlightOpacityPersistsAcrossInstances() {

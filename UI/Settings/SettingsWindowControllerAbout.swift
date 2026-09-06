@@ -7,19 +7,25 @@ extension SettingsWindowController {
         let container = NSView()
 
         let stack = makeContentStack()
+        stack.alignment = .centerX
 
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
 
-        let titleLabel = NSTextField(labelWithString: "Version:")
-        titleLabel.font = .systemFont(ofSize: Layout.headerFontSize)
+        let iconView = NSImageView(image: NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.widthAnchor.constraint(equalToConstant: 72).isActive = true
+        iconView.heightAnchor.constraint(equalToConstant: 72).isActive = true
+        stack.addArrangedSubview(iconView)
 
-        let versionLabel = NSTextField(labelWithString: version)
-        versionLabel.font = .monospacedSystemFont(ofSize: Layout.headerFontSize, weight: .regular)
+        let titleLabel = NSTextField(labelWithString: "SwiftType")
+        titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
+        stack.addArrangedSubview(titleLabel)
 
-        let row = NSStackView(views: [titleLabel, versionLabel])
-        row.spacing = Layout.buttonSpacing
-        row.alignment = .firstBaseline
-        stack.addArrangedSubview(row)
+        let versionLabel = NSTextField(labelWithString: "Version \(version)")
+        versionLabel.font = .systemFont(ofSize: Layout.headerFontSize)
+        versionLabel.textColor = .secondaryLabelColor
+        stack.addArrangedSubview(versionLabel)
 
         container.addSubview(stack)
 

@@ -35,8 +35,7 @@ import XCTest
     func testFirstDownPressExpandsWithoutMovingRow() {
         // Arrange: show enough words to have multiple rows.
         show(candidates: words(15), literal: nil)
-        // selectedCandidate() starts at row 0, col 0 → "word1".
-        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "word1")
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
 
         // Act: first Down press — must expand without moving the active row.
         CandidateWindow.shared.moveActiveRowDown()
@@ -134,6 +133,7 @@ import XCTest
         // Arrange: advance to col 1, then expand and move to row 1.
         let cols = ThemeManager.shared.gridCols
         show(candidates: words(cols * 3), literal: nil)
+        CandidateWindow.shared.moveActiveColumnRight() // select col 0
         CandidateWindow.shared.moveActiveColumnRight() // col 0 → col 1
         CandidateWindow.shared.moveActiveRowDown() // expand
         CandidateWindow.shared.moveActiveRowDown() // → row 1, col 1

@@ -23,10 +23,10 @@ import AppKit
         addSubview(label)
         label.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-            label.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -7),
+            label.topAnchor.constraint(equalTo: topAnchor, constant: 5),
+            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
         ])
     }
 
@@ -72,10 +72,11 @@ import AppKit
 
     // MARK: - Cached theme values — rebuilt only on theme change
 
-    private var wordFont = NSFont.systemFont(ofSize: 14, weight: .medium)
-    private var numberFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
+    private var wordFont = NSFont.systemFont(ofSize: 14)
+    private var numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
     private var baselineOffset: CGFloat = 1.0
     private var pillColor = NSColor.clear
+    private var selectedTextColor = NSColor.alternateSelectedControlTextColor
     private var pillRadius: CGFloat = 6
     private var cachedTheme: Theme = .defaultTheme
 
@@ -118,28 +119,28 @@ import AppKit
             let row = gridView.addRow(with: rowCells.map { $0 as NSView })
             row.isHidden = true
             row.topPadding = 0
-            row.bottomPadding = 4
+            row.bottomPadding = 3
         }
 
         // Each column sizes to its widest visible cell; cells stretch to fill that width.
         // rowSpacing = 0 so hidden rows never contribute unexpected space — the uniform
-        // 4 pt gap between rows comes from each row's bottomPadding alone.
+        // The compact inter-row gap comes from each row's bottomPadding alone.
         gridView.xPlacement = .fill
         gridView.yPlacement = .fill
-        gridView.columnSpacing = 4
+        gridView.columnSpacing = 2
         gridView.rowSpacing = 0
-        gridView.column(at: 0).leadingPadding = 4
+        gridView.column(at: 0).leadingPadding = 3
 
         gridView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(gridView)
         NSLayoutConstraint.activate([
             gridView.leadingAnchor.constraint(equalTo: leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            gridView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+            gridView.topAnchor.constraint(equalTo: topAnchor, constant: 3),
             gridView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
-        // Separators are centred in the 4 pt inter-row gap (1.75 + 0.5 + 1.75 = 4 pt).
+        // Separators are centred in the compact inter-row gap.
         for r in 0 ..< maxRows - 1 {
             let separator = NSView()
             separator.wantsLayer = true
@@ -150,7 +151,7 @@ import AppKit
                 separator.heightAnchor.constraint(equalToConstant: 0.5),
                 separator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
                 separator.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-                separator.topAnchor.constraint(equalTo: cells[r][0].bottomAnchor, constant: 1.75),
+                separator.topAnchor.constraint(equalTo: cells[r][0].bottomAnchor, constant: 1.25),
             ])
             separators.append(separator)
         }
@@ -183,18 +184,36 @@ import AppKit
         rebuildCachedThemeValues()
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        rebuildCachedThemeValues()
+        needsDisplay = true
+    }
+
     private func rebuildCachedThemeValues() {
         let theme = ThemeManager.shared.current
         let alpha = ThemeManager.shared.highlightOpacity
         cachedTheme = theme
         wordFont = NSFont.systemFont(ofSize: theme.wordFontSize, weight: theme.fontWeight)
-        numberFont = NSFont.monospacedSystemFont(ofSize: theme.numberFontSize, weight: theme.numberFontWeight)
+        numberFont = NSFont.monospacedDigitSystemFont(ofSize: theme.numberFontSize, weight: theme.numberFontWeight)
         baselineOffset = (theme.wordFontSize - theme.numberFontSize) / 3.0
-        pillColor = theme.highlightColor.withAlphaComponent(alpha)
         pillRadius = max(theme.cornerRadius - 2, 2)
-        let separatorCGColor = theme.separatorColor.withAlphaComponent(0.5).cgColor
+        var separatorCGColor: CGColor?
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            pillColor = theme.highlightColor.withAlphaComponent(alpha)
+            separatorCGColor = ThemeManager.shared.isColorCustomized(.separatorColor)
+                ? theme.separatorColor.cgColor
+                : theme.separatorColor.withAlphaComponent(0.35).cgColor
+        }
+        selectedTextColor = alpha >= 0.5 ? theme.highlightTextColor : theme.normalTextColor
         for separator in separators {
             separator.layer?.backgroundColor = separatorCGColor
+        }
+        for row in cells {
+            for cell in row {
+                cell.apply(highlighted: cell.isHighlighted, color: pillColor, radius: pillRadius)
+                cell.label.needsDisplay = true
+            }
         }
     }
 
@@ -221,7 +240,11 @@ import AppKit
 
     /// Renders the grid described by `state`.
     /// Only `state.renderedRowCount` rows are shown; everything else is hidden.
-    func updateGrid(_ state: GridCandidateState, layout: CandidateLayout = .grid) {
+    func updateGrid(
+        _ state: GridCandidateState,
+        layout: CandidateLayout = .grid,
+        showsSelection: Bool = true
+    ) {
         let theme = cachedTheme
         let numberAttrs = numberTextAttributes
         let renderedRows = state.renderedRowCount
@@ -231,7 +254,7 @@ import AppKit
         for col in 0 ..< Constants.maxSupportedGridCols {
             let column = gridView.column(at: col)
             column.isHidden = col >= columnCount
-            column.trailingPadding = col == columnCount - 1 ? 4 : 0
+            column.trailingPadding = col == columnCount - 1 ? 3 : 0
         }
 
         // Iterate over ALL pre-allocated rows (maxSupportedGridRows), not just the
@@ -253,7 +276,7 @@ import AppKit
             for col in 0 ..< columnCount {
                 let container = cells[rowIndex][col]
                 let isActiveRow = (gridRow == state.activeRow)
-                let isActive = isActiveRow && col == state.activeCol
+                let isActive = showsSelection && isActiveRow && col == state.activeCol
                 let selectionLabel = layout == .vertical ? rowIndex + 1 : col + 1
                 let showNumber = layout == .vertical || isActiveRow
 
@@ -284,7 +307,7 @@ import AppKit
         }
 
         for (i, separator) in separators.enumerated() {
-            separator.isHidden = gridView.row(at: i + 1).isHidden
+            separator.isHidden = layout == .vertical || gridView.row(at: i + 1).isHidden
         }
     }
 
@@ -300,7 +323,7 @@ import AppKit
         numberAttrs: [NSAttributedString.Key: Any],
     ) {
         let text = literalText ?? ""
-        let textColor: NSColor = isActive ? theme.highlightTextColor : theme.normalTextColor
+        let textColor: NSColor = isActive ? selectedTextColor : theme.normalTextColor
         let quoteAttrs: [NSAttributedString.Key: Any] = [
             .font: wordFont,
             .foregroundColor: theme.numberLabelColor,
@@ -332,7 +355,7 @@ import AppKit
         theme: Theme,
         numberAttrs: [NSAttributedString.Key: Any],
     ) {
-        let wordColor: NSColor = isActive ? theme.highlightTextColor : theme.normalTextColor
+        let wordColor: NSColor = isActive ? selectedTextColor : theme.normalTextColor
         let activeNumberAttrs = rowNumberAttrs(numberAttrs, isActiveRow: showNumber)
 
         let attributed = NSMutableAttributedString()

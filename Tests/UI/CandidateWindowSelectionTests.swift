@@ -65,9 +65,9 @@ import XCTest
         XCTAssertFalse(CandidateWindow.shared.isLiteralSelected)
     }
 
-    func testWithCandidatesOnly_initialSelectedCandidateIsFirst() {
+    func testWithCandidatesOnly_initialSelectionIsEmpty() {
         show(candidates: ["alpha", "beta"], literal: nil)
-        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "alpha")
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
     }
 
     // MARK: - show() resets selection index
@@ -76,11 +76,11 @@ import XCTest
         // Arrange: advance past the first slot.
         show(candidates: ["first", "second"], literal: nil)
         CandidateWindow.shared.moveActiveColumnRight()
-        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "second")
+        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "first")
         // Act: re-show with different content.
         show(candidates: ["newA", "newB"], literal: nil)
-        // Assert: selection resets to index 0.
-        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "newA")
+        // Assert: refreshed candidates return to an unselected state.
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
     }
 
     func testShowResetsLiteralSelectionAfterPreviousAdvance() {
@@ -147,15 +147,16 @@ import XCTest
 
     // MARK: - moveActiveColumnRight() — candidates only (no literal)
 
-    func testSelectNextWithoutLiteralMovesFromFirstToSecond() {
+    func testSelectNextWithoutLiteralSelectsFirstCandidate() {
         show(candidates: ["alpha", "beta", "gamma"], literal: nil)
         CandidateWindow.shared.moveActiveColumnRight()
-        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "beta")
+        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "alpha")
     }
 
     func testSelectNextWithoutLiteralWrapsFromLastToFirst() {
-        // Row 0 has 3 columns; three right moves cycle back to col 0.
+        // The first move activates column 0; three more moves cycle back to it.
         show(candidates: ["alpha", "beta", "gamma"], literal: nil)
+        CandidateWindow.shared.moveActiveColumnRight() // select "alpha"
         CandidateWindow.shared.moveActiveColumnRight() // → "beta"
         CandidateWindow.shared.moveActiveColumnRight() // → "gamma"
         CandidateWindow.shared.moveActiveColumnRight() // → "alpha" (wrap)
@@ -164,14 +165,15 @@ import XCTest
 
     // MARK: - moveActiveColumnLeft() — candidates only (no literal)
 
-    func testSelectPreviousWithoutLiteralWrapsFromFirstToLast() {
+    func testSelectPreviousWithoutLiteralSelectsFirstCandidate() {
         show(candidates: ["alpha", "beta", "gamma"], literal: nil)
-        CandidateWindow.shared.moveActiveColumnLeft() // wrap to "gamma"
-        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "gamma")
+        CandidateWindow.shared.moveActiveColumnLeft()
+        XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "alpha")
     }
 
     func testSelectPreviousWithoutLiteralMovesBackward() {
         show(candidates: ["alpha", "beta", "gamma"], literal: nil)
+        CandidateWindow.shared.moveActiveColumnRight() // select "alpha"
         CandidateWindow.shared.moveActiveColumnRight() // → "beta"
         CandidateWindow.shared.moveActiveColumnLeft() // → "alpha"
         XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "alpha")
@@ -273,6 +275,8 @@ import XCTest
         let candidates = ["alpha", "beta"]
         show(candidates: candidates, literal: nil)
 
+        XCTAssertNil(CandidateWindow.shared.selectedCandidate())
+        CandidateWindow.shared.moveActiveColumnRight()
         XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "alpha") // col 0
         CandidateWindow.shared.moveActiveColumnRight()
         XCTAssertEqual(CandidateWindow.shared.selectedCandidate(), "beta") // col 1

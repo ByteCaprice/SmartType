@@ -54,7 +54,7 @@ enum CandidateLayout: String, CaseIterable, Sendable {
 @MainActor final class ThemeManager {
     static let shared = ThemeManager()
 
-    static let defaultHighlightOpacity: CGFloat = 0
+    static let defaultHighlightOpacity: CGFloat = 0.82
     static let defaultGridCols = 5
     static let gridColsOptions = [4, 5, 6]
     static let defaultGridRows = 4
@@ -96,6 +96,11 @@ enum CandidateLayout: String, CaseIterable, Sendable {
 
     func hexString(for key: ThemeColorKey) -> String {
         defaults.string(forKey: key.rawValue) ?? key.defaultHex
+    }
+
+    func isColorCustomized(_ key: ThemeColorKey) -> Bool {
+        guard let hex = defaults.string(forKey: key.rawValue) else { return false }
+        return NSColor(hexString: hex) != nil
     }
 
     // MARK: - Candidate Columns
@@ -178,8 +183,10 @@ enum CandidateLayout: String, CaseIterable, Sendable {
         let base = Theme.defaultTheme
 
         func color(for key: ThemeColorKey) -> NSColor {
-            let hex = defaults.string(forKey: key.rawValue) ?? key.defaultHex
-            return NSColor(hexString: hex) ?? NSColor(hexString: key.defaultHex)!
+            guard let hex = defaults.string(forKey: key.rawValue) else {
+                return base.color(for: key)
+            }
+            return NSColor(hexString: hex) ?? base.color(for: key)
         }
 
         return Theme(

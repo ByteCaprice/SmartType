@@ -141,6 +141,8 @@ defaults write com.matthew.inputmethod.SwiftType transparentPredictionBundleIden
 
 Caps Lock (中/英) switching to other input methods is supported system-wide via the input method's `TICapsLockLanguageSwitchCapable` capability.
 
+Maintainers should read the [Input-Method Switching Guide](INPUT_METHOD_SWITCHING.md) before changing event handling, composition lifecycle, per-app policy, or installation behavior.
+
 ### Concurrency
 
 Application state is `@MainActor`-isolated under **Swift 6 strict concurrency**. InputMethodKit delivers callbacks on the main thread; the controller verifies that boundary before accessing composition state. Chromium candidate refreshes are asynchronously coalesced on the main actor so key handling can return to the browser before spell-checking and UI work begin.

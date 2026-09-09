@@ -97,6 +97,11 @@ extension InputController {
     }
 
     private func handleTransparentSpace(client: any IMKTextInput) -> Bool {
+        // Capture fallback bookkeeping before attempting a candidate commit because a
+        // failed verified replacement deliberately discards the mirrored composition.
+        let hadComposition = !state.compositionBuffer.isEmpty
+        let expectedSpaceCursor = state.expectedCursor.map { $0 + 1 }
+
         if CandidateWindow.shared.isVisible,
            let selected = CandidateWindow.shared.selectedCandidate(),
            commitTransparentWord(selected, trailingSpace: true, client: client)
@@ -104,8 +109,12 @@ extension InputController {
             return true
         }
 
-        let hadComposition = !state.compositionBuffer.isEmpty
-        let expectedSpaceCursor = state.expectedCursor.map { $0 + 1 }
+        if let prediction = defaultSpacePrediction(),
+           commitTransparentWord(prediction, trailingSpace: true, client: client)
+        {
+            return true
+        }
+
         discardMirroredComposition()
         client.insertText(" ", replacementRange: Constants.replacementNotFound)
         if hadComposition {

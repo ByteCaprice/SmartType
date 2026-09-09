@@ -11,7 +11,19 @@ Use this checklist after installing a new build. Unit tests cannot reproduce eve
 
 ## Core matrix
 
-For each application, test letters, punctuation, Backspace, Space, Return, a numbered candidate, and Caps Lock switching after typing `hel`.
+For each application, test letters, punctuation, Backspace, Space, Return, a numbered candidate, and Caps Lock switching after a partial word.
+
+Smart Space examples to record exactly:
+
+- `the` + Space → `the `
+- `but` + Space → `but `
+- `app` + Space → `app `
+- `appl` + Space → the candidate visibly marked `Space` (expected `apply ` on the researched machine)
+- `appli` + Space → the candidate visibly marked `Space` (expected `application ` on the researched machine)
+- `coord` + Space → the candidate visibly marked `Space` (expected `coordinate ` on the researched machine)
+- `convinient` + Space → `convenient ` when that correction is visibly offered
+
+Apple's candidate order can vary by OS, dictionary, learned words, and account. Treat disagreement between the visible Space target and committed text as a defect; record ranking differences rather than silently treating them as code failures.
 
 | Application | Expected mode | Expected behavior |
 | --- | --- | --- |
@@ -29,7 +41,9 @@ For each application, test letters, punctuation, Backspace, Space, Return, a num
 ## Candidate UI checks
 
 - Vertical List and Grid both display the documented shortcuts.
-- Space preserves literal typing when no candidate is selected.
+- A candidate marked with the spacebar icon is committed by Space when there is no explicit selection.
+- `✓ Exact match` means Space preserves the completed word already visible at the caret; `✓ Keep typed` covers conservative literal fallbacks. Neither indicator repeats the word in the panel.
+- Arrow navigation moves both the explicit selection and its Space indication; Return behavior remains tied to explicit selection only.
 - Transparent clients pass arrows and Tab to the host while dismissing candidates.
 - The panel remains near the caret at screen edges, after scrolling, and on two displays.
 - Moving to another field while a transparent refresh is pending does not show stale candidates.
@@ -40,7 +54,8 @@ With VoiceOver enabled:
 
 - The candidate container is announced as “SwiftType candidates.”
 - Only visible candidates are present in the accessibility tree.
-- Candidate labels include the visible shortcut where one is active.
+- Candidate labels include the visible shortcut where one is active and announce “Space accepts …” for the current Space candidate.
+- A literal default updates the container description to announce that Space keeps the typed word without marking a candidate selected.
 - Arrow navigation updates the selected row without moving keyboard focus away from the host editor.
 - Hidden/preallocated rows are not announced.
 

@@ -10,7 +10,7 @@ SwiftType is an English-only, offline macOS input method built with Swift 6, App
 
 **Current user-visible status:** after the installed guide-compliant build encountered a stale `imklaunchagent` connection refusal, restarting macOS restored normal input and Caps Lock language switching in TextEdit and Spotlight. SwiftType is operating normally. Preserve this known-good routing and input-source metadata.
 
-**Current assignment:** the user authorized the remaining work from [IMPROVEMENT_REVIEW.md](./IMPROVEMENT_REVIEW.md) after Phases 1–3. The worktree now also contains performance signposts, candidate accessibility semantics/actions, stable caret fallback, Settings polish/preview, stronger preference validation, and `REAL_CLIENT_ACCEPTANCE.md`. Automated verification passed; the optimized build has deliberately not replaced the currently working installation. Real-client, VoiceOver, positioning, and latency checks remain necessary after a future install.
+**Current assignment:** validate the implementation of [SMART_SPACE_IMPLEMENTATION_GUIDE.md](./SMART_SPACE_IMPLEMENTATION_GUIDE.md) on the `smart-space` branch while preserving the completed improvement-review work. Smart Space retains exact-word evidence, prefers strict prefix completions over corrections, and gives Space a visible default action without creating an explicit candidate selection. The full isolated suite passes 575 tests, and a temporary unsigned universal Release build is valid. The user explicitly authorized installation on 2026-09-09; the reason-aware indicator build `20260909081738` is installed with a valid signature and universal `x86_64 arm64` executable. It was confirmed running as PID `56691`; reopen clients if they retain the preceding IMK session. Real-client, VoiceOver, positioning, and latency checks remain necessary.
 
 Recommended first steps for the next developer:
 
@@ -129,7 +129,7 @@ This changes preferences; do not run it casually. The Edge and passthrough excep
 - Letters and continuation apostrophes accumulate in `compositionBuffer`, update marked text, and immediately fetch/render predictions.
 - Backspace edits composition and is consumed when the buffer is nonempty; otherwise it passes through.
 - Digits choose a populated visible candidate slot when Shift is not held. Empty slots commit the literal composition and let the digit through.
-- Space commits the selected candidate, or the literal buffer when nothing is selected, with a trailing space. With no composition/selection, it passes through.
+- Space commits an explicitly selected candidate first. Otherwise it accepts a fresh visible Smart Space candidate or preserves the literal buffer, with a trailing space. With no composition/selection, it passes through.
 - Return while the panel is visible commits the selected candidate or literal buffer without a trailing space and is consumed. With the panel hidden, any buffer is committed and Return passes through.
 - Escape commits literal text and dismisses; it is consumed only if composition/panel content existed.
 - Arrows/Tab navigate when the panel is visible. Otherwise they commit composition and pass through.
@@ -145,7 +145,8 @@ The previous handoff said letters passed through without any client write. That 
 | Letter or continuation apostrophe | Append mirror, insert the character, schedule prediction refresh, consume |
 | Ordinary number/punctuation/symbol not handled as selection | Discard mirror, insert character, consume |
 | Backspace | Update mirror and expected cursor, schedule refresh or clear; return false so host deletes once |
-| Space without successful selected-candidate commit | Discard mirror, explicitly insert space; record trailing-space state when applicable |
+| Space with a fresh visible Smart Space candidate | Insert a safe suffix or verified replacement; otherwise fall back to literal space |
+| Space without a successful candidate commit | Discard mirror, explicitly insert space; record trailing-space state when applicable |
 | Return without selection | Discard mirror and pass through; retain normal host submit/newline behavior |
 | Digit on a populated slot | Attempt safe candidate commit; on failure fall back to ordinary character handling |
 | Escape/arrows/Tab | Discard mirror and pass through; do not implement inline candidate navigation here |
@@ -180,7 +181,7 @@ Historical upstream references: Chromium `content/app_shim_remote_cocoa/render_w
 - `Constants.spellCompletionLimit` is five. Do not confuse the five-result limit with the maximum number of preallocated grid cells.
 - Inline prediction work is synchronous in key handling. Transparent refreshes cancel/coalesce for 75 ms, then run spell-check/UI work on the main actor. Coalescing is not background spell-checking.
 - Default layout is Vertical List; default rows are four, options three/four/five. Grid columns default to five, options four/five/six. Preallocation supports up to five rows and seven columns.
-- Production calls supply predictions only, no literal candidate slot. The panel starts without an active selection. Literal-slot support remains in UI code/tests but is not used by normal prediction display.
+- Production calls supply predictions only, no literal candidate slot. The panel starts without an active selection. A separate Smart Space action marks the automatic candidate or shows a reason-aware `✓ Exact match` / `✓ Keep typed` literal indicator; it does not change Return/navigation selection state. Literal-slot support remains in UI code/tests but is not used by normal prediction display.
 - Vertical digit labels refer to visible rows. Inline arrows/Tab activate and move selection; grid navigation uses active rows/columns. Transparent arrows/Tab dismiss instead.
 - Candidate cells are preallocated and theme fonts/colors are partly cached. The window still reapplies layer theme work on each show and queries host geometry/window level.
 - Caret geometry currently comes from `attributes(forCharacterIndex: 0, ...)`; invalid origin falls back to the mouse. Expand/reframe uses a cached rectangle. Do not assume another index is universally correct across IMK clients without testing.
@@ -241,7 +242,7 @@ Ordinary local installation does not restart `imklaunchagent` or force-kill shar
 
 The isolated shell harness at `scripts/release/tests/test_pkg_install.sh` never touches the active input method. Its ten cases cover missing/invalid/corrupt payloads, successful replacement, error/signal rollback, failed first installation, unwritable destination, and file/directory symlink rejection. `scripts/release/tests/test_diagnose.sh` verifies the read-only diagnostic against an isolated home. A real generated PKG installation in a disposable environment remains recommended before public distribution.
 
-Phase 1–3 verification on 2026-09-08: shell syntax and whitespace checks passed, the original installer harness passed 4/4, the full isolated Xcode suite passed 533 tests with 0 failures, and the independent Tester returned PASS. After the remaining improvements, the final isolated Xcode suite passed 543 tests with 0 failures. The expanded installer harness passed 10/10, the diagnostic harness and live redaction check passed, and a third independent Tester returned PASS. Temporary DerivedData was removed afterward. Xcode still emitted LaunchServices registration commands despite requesting `REGISTER_WITH_LAUNCH_SERVICES=NO`; the resulting paths no longer exist, and no automated unregister operation was performed.
+Phase 1–3 verification on 2026-09-08: shell syntax and whitespace checks passed, the original installer harness passed 4/4, the full isolated Xcode suite passed 533 tests with 0 failures, and the independent Tester returned PASS. After the remaining improvements, the final isolated Xcode suite passed 543 tests with 0 failures. The expanded installer harness passed 10/10, the diagnostic harness and live redaction check passed, and a third independent Tester returned PASS. Smart Space verification on 2026-09-09 passed 575 tests with 0 failures or skips; focused policy/controller/UI tests and an independent Tester also passed, and an unsigned temporary Release build was universal `x86_64 arm64` with a valid plist. Temporary DerivedData does not alter the installed input method. Xcode still emitted LaunchServices registration commands despite requesting `REGISTER_WITH_LAUNCH_SERVICES=NO`; no automated unregister operation was performed.
 
 ## 10. Improvement Review and Next Work
 

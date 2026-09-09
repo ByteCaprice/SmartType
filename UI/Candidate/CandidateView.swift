@@ -59,6 +59,27 @@ import AppKit
 
 // MARK: - Candidate View
 
+struct CandidateSpacePresentation {
+    let action: DefaultSpaceAction
+    let reason: DefaultSpaceReason
+    let literalText: String?
+
+    static let none = CandidateSpacePresentation(
+        action: .literal,
+        reason: .fallbackLiteral,
+        literalText: nil
+    )
+}
+
+private struct PredictionCellPresentation {
+    let acceptsSpace: Bool
+    let selectionLabel: Int
+    let isActive: Bool
+    let showNumber: Bool
+    let theme: Theme
+    let numberAttrs: [NSAttributedString.Key: Any]
+}
+
 /// Renders the candidate grid: up to `gridMaxVisibleRows` horizontal rows,
 /// each containing up to `maxSupportedGridCols` cells.
 ///
@@ -68,6 +89,8 @@ import AppKit
     // MARK: - Grid
 
     private let gridView: NSGridView
+    private let spaceHintLabel = NSTextField(labelWithString: "")
+    private var spaceHintHeightConstraint: NSLayoutConstraint!
 
     /// `cells[r][c]` is the HighlightContainerView for row r, column c.
     private var cells: [[HighlightContainerView]] = []
@@ -86,6 +109,8 @@ import AppKit
     private var cachedTheme: Theme = .defaultTheme
     private(set) var accessibilityCandidateLabels: [String] = []
     private(set) var accessibilitySelectedCandidateLabel: String?
+    private(set) var visualCandidateLabels: [String] = []
+    private(set) var spaceHintText: String?
     var candidateSelectionHandler: (@MainActor (Int) -> Void)?
     private var accessibilitySelectionIndex: Int?
 
@@ -147,11 +172,24 @@ import AppKit
 
         gridView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(gridView)
+
+        spaceHintLabel.translatesAutoresizingMaskIntoConstraints = false
+        spaceHintLabel.alignment = .right
+        spaceHintLabel.lineBreakMode = .byTruncatingTail
+        spaceHintLabel.isHidden = true
+        spaceHintLabel.setAccessibilityElement(false)
+        addSubview(spaceHintLabel)
+        spaceHintHeightConstraint = spaceHintLabel.heightAnchor.constraint(equalToConstant: 0)
+
         NSLayoutConstraint.activate([
             gridView.leadingAnchor.constraint(equalTo: leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: trailingAnchor),
             gridView.topAnchor.constraint(equalTo: topAnchor, constant: 3),
-            gridView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            gridView.bottomAnchor.constraint(equalTo: spaceHintLabel.topAnchor),
+            spaceHintLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7),
+            spaceHintLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -7),
+            spaceHintLabel.bottomAnchor.constraint(equalTo: bottomAnchor),
+            spaceHintHeightConstraint,
         ])
 
         // Separators are centred in the compact inter-row gap.
@@ -232,6 +270,8 @@ import AppKit
                 : theme.separatorColor.withAlphaComponent(0.35).cgColor
         }
         selectedTextColor = alpha >= 0.5 ? theme.highlightTextColor : theme.normalTextColor
+        spaceHintLabel.font = numberFont
+        spaceHintLabel.textColor = theme.numberLabelColor
         for separator in separators {
             separator.layer?.backgroundColor = separatorCGColor
         }
@@ -269,8 +309,14 @@ import AppKit
     func updateGrid(
         _ state: GridCandidateState,
         layout: CandidateLayout = .grid,
-        showsSelection: Bool = true
+        showsSelection: Bool = true,
+        spacePresentation: CandidateSpacePresentation = .none
     ) {
+        updateSpaceHint(
+            action: spacePresentation.action,
+            reason: spacePresentation.reason,
+            literalText: spacePresentation.literalText
+        )
         let theme = cachedTheme
         let numberAttrs = numberTextAttributes
         let renderedRows = state.renderedRowCount
@@ -321,11 +367,14 @@ import AppKit
                         container,
                         text: state.predictions[predIdx],
                         predictionIndex: predIdx,
-                        selectionLabel: selectionLabel,
-                        isActive: isActive,
-                        showNumber: showNumber,
-                        theme: theme,
-                        numberAttrs: numberAttrs,
+                        presentation: PredictionCellPresentation(
+                            acceptsSpace: spacePresentation.action == .prediction(index: predIdx),
+                            selectionLabel: selectionLabel,
+                            isActive: isActive,
+                            showNumber: showNumber,
+                            theme: theme,
+                            numberAttrs: numberAttrs
+                        )
                     )
                 } else {
                     hideCell(container)
@@ -387,21 +436,28 @@ import AppKit
         _ container: HighlightContainerView,
         text: String,
         predictionIndex: Int,
-        selectionLabel: Int,
-        isActive: Bool,
-        showNumber: Bool,
-        theme: Theme,
-        numberAttrs: [NSAttributedString.Key: Any],
+        presentation: PredictionCellPresentation
     ) {
-        let wordColor: NSColor = isActive ? selectedTextColor : theme.normalTextColor
-        let activeNumberAttrs = rowNumberAttrs(numberAttrs, isActiveRow: showNumber)
+        let wordColor: NSColor = presentation.isActive
+            ? selectedTextColor
+            : presentation.theme.normalTextColor
+        let activeNumberAttrs = rowNumberAttrs(
+            presentation.numberAttrs,
+            isActiveRow: presentation.showNumber
+        )
 
         let attributed = NSMutableAttributedString()
-        attributed.append(NSAttributedString(string: "\(selectionLabel) ", attributes: activeNumberAttrs))
+        attributed.append(NSAttributedString(
+            string: "\(presentation.selectionLabel) ",
+            attributes: activeNumberAttrs
+        ))
         attributed.append(NSAttributedString(string: text, attributes: [
             .font: wordFont,
             .foregroundColor: wordColor,
         ]))
+        if presentation.acceptsSpace {
+            appendSpaceKeyIcon(to: attributed)
+        }
 
         container.label.attributedStringValue = attributed
         container.label.isHidden = false
@@ -409,16 +465,58 @@ import AppKit
         configureAccessibilityCell(
             container,
             text: text,
-            shortcut: showNumber ? selectionLabel : nil,
+            shortcut: presentation.showNumber ? presentation.selectionLabel : nil,
             isLiteral: false,
-            isSelected: isActive,
-            predictionIndex: predictionIndex
+            isSelected: presentation.isActive,
+            predictionIndex: predictionIndex,
+            acceptsSpace: presentation.acceptsSpace
         )
-        container.apply(highlighted: isActive, color: pillColor, radius: pillRadius)
+        container.apply(
+            highlighted: presentation.isActive,
+            color: pillColor,
+            radius: pillRadius
+        )
     }
 
-    // MARK: - Accessibility
+}
 
+@MainActor private extension CandidateView {
+    func appendSpaceKeyIcon(to attributed: NSMutableAttributedString) {
+        attributed.append(NSAttributedString(string: "  "))
+        attributed.append(symbolIcon(systemName: "space", fallback: "␣"))
+    }
+
+    private func symbolIcon(systemName: String, fallback: String) -> NSAttributedString {
+        let configuration = NSImage.SymbolConfiguration(
+            pointSize: numberFont.pointSize + 1,
+            weight: .regular
+        )
+        if let image = NSImage(
+            systemSymbolName: systemName,
+            accessibilityDescription: nil
+        )?.withSymbolConfiguration(configuration) {
+            image.isTemplate = true
+            let attachment = NSTextAttachment()
+            attachment.image = image
+            let icon = NSMutableAttributedString(attachment: attachment)
+            icon.addAttributes([
+                .foregroundColor: cachedTheme.numberLabelColor,
+                .baselineOffset: baselineOffset,
+            ], range: NSRange(location: 0, length: icon.length))
+            return icon
+        }
+        return NSAttributedString(string: fallback, attributes: [
+            .font: numberFont,
+            .foregroundColor: cachedTheme.numberLabelColor,
+            .baselineOffset: baselineOffset,
+        ])
+    }
+
+}
+
+// MARK: - Accessibility and cleanup
+
+@MainActor extension CandidateView {
     func performAccessibilityCandidateSelection(at index: Int) -> Bool {
         let visibleCells = cells.flatMap { row in
             row.filter { !$0.isHidden && !$0.label.stringValue.isEmpty }
@@ -428,9 +526,11 @@ import AppKit
     }
 
     func clearAccessibilityCandidates() {
+        updateSpaceHint(action: .literal, reason: .fallbackLiteral, literalText: nil)
         guard !accessibilityCandidateLabels.isEmpty else { return }
         accessibilityCandidateLabels = []
         accessibilitySelectedCandidateLabel = nil
+        visualCandidateLabels = []
         accessibilitySelectionIndex = nil
         candidateSelectionHandler = nil
         setAccessibilityRows([])
@@ -445,9 +545,13 @@ import AppKit
         shortcut: Int?,
         isLiteral: Bool,
         isSelected: Bool,
-        predictionIndex: Int?
+        predictionIndex: Int?,
+        acceptsSpace: Bool = false
     ) {
-        let candidateDescription = isLiteral ? "literal text, \(text)" : text
+        let baseDescription = isLiteral ? "literal text, \(text)" : text
+        let candidateDescription = acceptsSpace
+            ? "\(baseDescription), Space accepts \(text)"
+            : baseDescription
         let label = shortcut.map { "\($0), \(candidateDescription)" } ?? candidateDescription
         container.setAccessibilityLabel(label)
         container.setAccessibilitySelected(isSelected)
@@ -476,6 +580,7 @@ import AppKit
 
         accessibilityCandidateLabels = labels
         accessibilitySelectedCandidateLabel = selectedIndex.map { labels[$0] }
+        visualCandidateLabels = visibleCells.map { $0.label.stringValue }
         accessibilitySelectionIndex = selectedIndex
         setAccessibilityRows(visibleCells)
         setAccessibilityVisibleRows(visibleCells)
@@ -488,6 +593,36 @@ import AppKit
     }
 
     // MARK: - Helpers
+
+    private func updateSpaceHint(
+        action: DefaultSpaceAction,
+        reason: DefaultSpaceReason,
+        literalText: String?
+    ) {
+        guard action == .literal, let literalText, !literalText.isEmpty else {
+            spaceHintText = nil
+            spaceHintLabel.stringValue = ""
+            spaceHintLabel.isHidden = true
+            spaceHintHeightConstraint.constant = 0
+            setAccessibilityLabel("SwiftType candidates")
+            return
+        }
+
+        let description = reason == .exactCompletion ? "Exact match" : "Keep typed"
+        let indicator = NSMutableAttributedString(
+            attributedString: symbolIcon(systemName: "checkmark", fallback: "✓")
+        )
+        indicator.append(NSAttributedString(string: "  \(description)", attributes: [
+            .font: numberFont,
+            .foregroundColor: cachedTheme.numberLabelColor,
+            .baselineOffset: baselineOffset,
+        ]))
+        spaceHintLabel.attributedStringValue = indicator
+        spaceHintText = spaceHintLabel.stringValue
+        spaceHintLabel.isHidden = false
+        spaceHintHeightConstraint.constant = ceil(numberFont.ascender - numberFont.descender) + 4
+        setAccessibilityLabel("SwiftType candidates. Space keeps current word. \(description)")
+    }
 
     private func hideCell(_ container: HighlightContainerView) {
         container.label.stringValue = ""

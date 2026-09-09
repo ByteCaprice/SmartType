@@ -2,7 +2,7 @@
 
 Research date: 2026-09-09. Audience: the next implementation agent, including GPT-5.6-sol.
 
-**Status: proposal and research only. No production implementation or installation was performed for this guide.**
+**Status: implemented on the `smart-space` branch and installed for user evaluation on 2026-09-09 as reason-aware indicator build `20260909081738`; automated verification is recorded below. Real-client validation remains pending.**
 
 ## 1. Product requirement
 
@@ -259,8 +259,8 @@ Caps Lock / 中英 must continue preserving the original text and passing switch
 
 Recommended minimal UI:
 
-- For an automatic candidate target, add a subtle `Space` indication to that candidate (normally candidate 1).
-- For a literal target, show a compact `Space: app` / `Space: but` hint without consuming a numbered candidate slot.
+- For an automatic candidate target, add a subtle spacebar icon to that candidate (normally candidate 1). Use the native SF Symbol `space` with Unicode `␣` as a runtime fallback; keep the spoken accessibility label explicit.
+- For a literal target, show a compact reason-aware footer without consuming a numbered candidate slot or repeating the word already visible at the caret: `✓ Exact match` for exact dictionary evidence and `✓ Keep typed` for protected/uncertain literal fallbacks. Use the native SF Symbol `checkmark` with `✓` fallback.
 - When explicit navigation selects a different item, update the Space indication to that item. Existing Return selection semantics remain tied only to explicit selection.
 - No default-selection highlight that secretly flips `hasActiveSelection`.
 - Accessibility should announce the default action, e.g. “Space accepts application,” without marking an unselected row as explicitly selected. Preserve existing press actions and nonactivating behavior.
@@ -405,7 +405,26 @@ for token in ["the", "but", "app", "appl", "appli", "coord",
 SWIFT
 ```
 
-## 13. Instructions to the implementation agent
+## 13. Implementation status
+
+Implemented behavior:
+
+- Exact completion evidence remains separate from displayed alternatives, so complete words can stay literal even when the exact result falls beyond the UI limit.
+- Strict prefix completions precede corrections; corrections precede fuzzy guesses. Fuzzy guesses alone never become the automatic Space action.
+- A buffer-bound `PredictionSnapshot` stores ranked alternatives and the default action. Automatic commits require a visible panel, matching buffer, and valid index.
+- Inline and transparent Space share the same resolved candidate but retain their existing commit mechanics and safe transparent fallback.
+- The candidate UI marks the current Space candidate with a native spacebar icon (Unicode `␣` fallback) without creating an explicit selection. Literal decisions use a separate reason-aware `✓ Exact match` / `✓ Keep typed` footer that does not repeat the word. Navigation moves the marker to the explicit selection.
+- Return, Caps Lock / 中英, number shortcuts, passthrough routing, automatic-space punctuation, and transparent debounce behavior remain separately tested.
+- The implementation does not add `checkSpelling`; it uses completion exact-match evidence, strict-prefix evidence, optional correction, guesses, and learned-word state.
+
+Automated verification on 2026-09-09:
+
+- Focused Smart Space/policy/controller/transparent/UI tests passed.
+- Full XCTest suite passed: **575 tests, 0 failures, 0 skips** on macOS 26.6.2.
+- Unsigned Release validation produced a universal `x86_64 arm64` executable and a valid `Info.plist` in temporary DerivedData.
+- After implementation verification, the user explicitly authorized installation. Transactional installation of reason-aware indicator build `20260909081738` succeeded; signature and universal architecture were verified. Real-client validation remains pending.
+
+## 14. Instructions to future implementation agents
 
 Implement the agreed behavior, not a wholesale IME redesign. Start from this guide's actual evidence, especially the `coord` counterexample. Keep raw exact-match evidence, preserve Return's explicit-selection distinction, and share the Space decision without merging inline/transparent insertion paths.
 

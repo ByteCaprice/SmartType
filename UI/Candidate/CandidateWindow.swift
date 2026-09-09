@@ -29,6 +29,9 @@ import InputMethodKit
     private var gridState: GridCandidateState?
     private var candidateLayout = CandidateLayout.grid
     private var hasActiveSelection = false
+    private var defaultSpaceAction = DefaultSpaceAction.literal
+    private var defaultSpaceReason = DefaultSpaceReason.fallbackLiteral
+    private var literalSpaceText: String?
     /// Cached cursor rect — reused when reflowing the panel on expand / collapse.
     private var lastCursorRect: NSRect = .zero
     private var lastValidCursorRect: NSRect?
@@ -50,6 +53,14 @@ import InputMethodKit
 
     var accessibilitySelectedCandidateLabel: String? {
         candidateView.accessibilitySelectedCandidateLabel
+    }
+
+    var spaceHintText: String? {
+        candidateView.spaceHintText
+    }
+
+    var visualCandidateLabels: [String] {
+        candidateView.visualCandidateLabels
     }
 
     // MARK: - Init
@@ -143,6 +154,9 @@ import InputMethodKit
     func show(
         candidates: [String],
         literalText: String? = nil,
+        defaultSpaceAction: DefaultSpaceAction = .literal,
+        defaultSpaceReason: DefaultSpaceReason = .fallbackLiteral,
+        literalSpaceText: String? = nil,
         layout: CandidateLayout = .grid,
         client: (any IMKTextInput)?,
         candidateSelectionHandler: (@MainActor (Int) -> Void)? = nil
@@ -165,6 +179,9 @@ import InputMethodKit
             candidateView.candidateSelectionHandler = candidateSelectionHandler
         }
         candidateLayout = layout
+        self.defaultSpaceAction = defaultSpaceAction
+        self.defaultSpaceReason = defaultSpaceReason
+        self.literalSpaceText = literalSpaceText
         // Literal slots are retained for callers that explicitly request one. Normal
         // typing supplies predictions only and therefore starts without a selection.
         hasActiveSelection = literalText != nil
@@ -196,6 +213,9 @@ import InputMethodKit
         panel.orderOut(nil)
         gridState = nil
         hasActiveSelection = false
+        defaultSpaceAction = .literal
+        defaultSpaceReason = .fallbackLiteral
+        literalSpaceText = nil
         candidateView.clearAccessibilityCandidates()
     }
 
@@ -318,10 +338,30 @@ import InputMethodKit
 
     private func refreshView() {
         guard let gs = gridState else { return }
+        let displaySpaceAction: DefaultSpaceAction
+        if hasActiveSelection,
+           let selectedIndex = gs.predictionIndex(row: gs.activeRow, col: gs.activeCol)
+        {
+            displaySpaceAction = .prediction(index: selectedIndex)
+        } else if hasActiveSelection {
+            displaySpaceAction = .literal
+        } else {
+            switch defaultSpaceAction {
+            case .literal:
+                displaySpaceAction = .literal
+            case let .prediction(index):
+                displaySpaceAction = .prediction(index: index + (gs.hasLiteral ? 1 : 0))
+            }
+        }
         candidateView.updateGrid(
             gs,
             layout: candidateLayout,
-            showsSelection: hasActiveSelection
+            showsSelection: hasActiveSelection,
+            spacePresentation: CandidateSpacePresentation(
+                action: displaySpaceAction,
+                reason: defaultSpaceReason,
+                literalText: literalSpaceText
+            )
         )
     }
 

@@ -24,6 +24,7 @@ Built with Swift 6, [InputMethodKit](https://developer.apple.com/documentation/i
 ## ✨ Features
 
 - **Up to five word completions and corrections** as you type, powered by macOS's built-in spell checker
+- **Smart Space** — preserves complete words and accepts the displayed default for incomplete prefixes or clear corrections
 - **Fully offline** — suggestions use the system dictionary and no data leaves your machine
 - **Expandable candidate grid** — starts as a single row and expands when more candidates are available
 - **Themeable candidate window** — customize colors, opacity, grid size, and border through the Settings UI
@@ -66,15 +67,15 @@ Switch to SwiftType, open any text field, and start typing. The candidate bar ap
 
 ### Candidate selection
 
-SwiftType defaults to **Vertical List**. A visible list does not initially mean that a suggestion is selected, so pressing `Space` preserves the literal word until you activate a selection.
+SwiftType defaults to **Vertical List**. A visible list does not initially mean that a suggestion is explicitly selected. Smart Space preserves a recognized complete word, or accepts the candidate marked with the spacebar icon for an incomplete prefix or correction. A compact `✓ Exact match` indicator beneath the candidates means the completed word will be kept. Other conservative literal fallbacks use `✓ Keep typed`.
 
 | Key | Vertical List action |
 |---|---|
 | `1`–`7` | Commit the correspondingly numbered visible candidate |
 | `↓` / `Tab` / `→` | Activate the first candidate, then move down |
 | `↑` / `←` | Move up |
-| `Space` | Commit the selected prediction, or preserve literal typing when none is selected |
-| `Return` | Commit the selected prediction; otherwise preserve the word and pass Return to the app |
+| `Space` | Commit an explicit selection; otherwise use the displayed Smart Space target, with one trailing space |
+| `Return` | Commit an explicit selection; otherwise preserve the original letters without adding a space |
 | `Escape` | Preserve literal text and dismiss candidates |
 
 ### Grid layout
@@ -91,7 +92,7 @@ Choose **Grid** in Settings to use a collapsed first row and expandable multi-ro
 
 ### Browser and passthrough differences
 
-Chrome, Brave, Vivaldi, Opera, and WeCom use transparent prediction so Caps Lock language switching remains reliable. Number shortcuts still select visible candidates, but arrows and Tab belong to the browser and dismiss SwiftType's candidates instead of navigating them. Terminal and VS Code use passthrough mode and intentionally show no suggestions.
+Chrome, Brave, Vivaldi, Opera, and WeCom use transparent prediction so Caps Lock language switching remains reliable. Smart Space and number shortcuts still accept visible candidates, but arrows and Tab belong to the browser and dismiss SwiftType's candidates instead of navigating them. Return preserves the typed letters and remains the browser's normal submit/newline key. Terminal and VS Code use passthrough mode and intentionally show no suggestions.
 
 ---
 
@@ -114,11 +115,14 @@ Reset all settings: `defaults delete com.matthew.inputmethod.SwiftType`
 
 ```
 Keystroke
- → SpellCheckPredictor (macOS spell checker → corrections + completions)
+ → SpellCheckPredictor (macOS spell checker → exact evidence + prefix completions + corrections)
+ → Smart Space policy (literal or visible default candidate)
  → CandidateWindow (floating grid below cursor)
 ```
 
-**SpellCheckPredictor** wraps `NSSpellChecker` to produce spelling corrections, prefix completions, and fuzzy guesses — all synchronous, no network calls.
+**SpellCheckPredictor** wraps `NSSpellChecker` to retain exact-word evidence, rank strict prefix completions ahead of corrections, and keep fuzzy guesses as explicit choices. Exact ranking remains dependent on the local macOS dictionary and learned-word state; all processing is synchronous and offline.
+
+Smart Space is intentionally completion-oriented. Ambiguous misspellings that are also prefixes can favor a dictionary completion—for example, a local dictionary may rank `helots` for `helo` or `imagine` for `im`. Return preserves the original letters when no candidate was explicitly selected.
 
 ### Architecture
 

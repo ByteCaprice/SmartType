@@ -14,7 +14,7 @@ extension InputController {
         pendingTransparentPredictionUpdate?.cancel()
         pendingTransparentPredictionUpdate = nil
         transparentPredictionGeneration &+= 1
-        state.currentPredictions = []
+        state.predictionSnapshot = nil
         CandidateWindow.shared.hide()
     }
 }

@@ -101,7 +101,7 @@ Validation: queue a refresh, change selection or field before it fires, and veri
 
 Evidence: the default is Vertical List (`UI/Theme/ThemeManager.swift:62`), while `README.md:67-87` explains a collapsed grid and active-row column selection. Production predictions start with no selected candidate (`CandidateWindow.swift:147-149`). Transparent mode passes arrows and Tab through while dismissing candidates (`InputControllerTransparentPrediction.swift:44-46`), unlike inline navigation.
 
-Recommendation: document Vertical and Grid separately, and distinguish inline from transparent-mode controls. Explain that a visible list is not necessarily a selected suggestion, and that Space without a selection preserves literal typing. Describe digit labels in terms of the visible slots, not a fixed universal column count.
+Recommendation: document Vertical and Grid separately, and distinguish inline from transparent-mode controls. Explain that a visible list is not necessarily an explicitly selected suggestion. Smart Space now exposes a separate visible default action without changing Return/navigation selection state. Describe digit labels in terms of the visible slots, not a fixed universal column count.
 
 Add a compact in-app Shortcuts/Help entry. In transparent mode, do not advertise arrow-based selection that the implementation intentionally does not consume. Explain why terminals and VS Code have no suggestions rather than letting users assume the input method failed.
 

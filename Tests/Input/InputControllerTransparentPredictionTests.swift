@@ -256,6 +256,76 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
     }
 
+    func testSpaceInsertsFreshDefaultCompletionSuffix() throws {
+        try type("a", keyCode: 0)
+        try type("p", keyCode: 35)
+        try type("p", keyCode: 35)
+        try type("l", keyCode: 37)
+        setPredictionSnapshot(
+            buffer: "appl",
+            predictions: ["apply", "apple"],
+            action: .prediction(index: 0),
+            reason: .prefixCompletion
+        )
+
+        let handled = try type(" ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(handled)
+        XCTAssertEqual(client.insertedText, ["a", "p", "p", "l", "y "])
+        XCTAssertEqual(client.document, "apply ")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testSpacePreservesTransparentCompleteWord() throws {
+        try type("a", keyCode: 0)
+        try type("p", keyCode: 35)
+        try type("p", keyCode: 35)
+        setPredictionSnapshot(
+            buffer: "app",
+            predictions: ["appreciate", "apply"],
+            action: .literal,
+            reason: .exactCompletion
+        )
+
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+        XCTAssertEqual(client.insertedText, ["a", "p", "p", " "])
+        XCTAssertEqual(client.document, "app ")
+    }
+
+    func testSpaceAppliesVerifiedTransparentCorrection() throws {
+        try type("t", keyCode: 17)
+        try type("e", keyCode: 14)
+        try type("h", keyCode: 4)
+        setPredictionSnapshot(
+            buffer: "teh",
+            predictions: ["the"],
+            action: .prediction(index: 0),
+            reason: .correction
+        )
+
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+        XCTAssertEqual(client.markedText, ["the "])
+        XCTAssertEqual(client.document, "the ")
+    }
+
+    func testUnverifiedTransparentDefaultFallsBackToLiteralSpace() throws {
+        try type("t", keyCode: 17)
+        try type("e", keyCode: 14)
+        try type("h", keyCode: 4)
+        client.supportsDocumentAccess = false
+        setPredictionSnapshot(
+            buffer: "teh",
+            predictions: ["the"],
+            action: .prediction(index: 0),
+            reason: .correction
+        )
+
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertEqual(client.document, "teh ")
+        XCTAssertEqual(client.insertedText, ["t", "e", "h", " "])
+    }
+
     func testSpaceWithNoCompositionIsInsertedOnceAndConsumed() throws {
         // Space outside any composition must land exactly once: consumed by the
         // input method and inserted via insertText, never both.
@@ -314,6 +384,20 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(client.insertedText, ["h", "e", "l"])
         XCTAssertEqual(client.document, "hel")
         XCTAssertFalse(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testSpaceBeforeDeferredRefreshStaysLiteralAndCancelsCandidates() async throws {
+        try type("h", keyCode: 4)
+
+        let handled = try type(" ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(handled)
+        XCTAssertEqual(client.document, "h ")
+        XCTAssertEqual(client.insertedText, ["h", " "])
+        XCTAssertNil(controller.pendingTransparentPredictionUpdate)
+        await releaseDeferredPredictionTasks()
+        XCTAssertEqual(client.windowLevelQueryCount, 0)
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
     }
 
     func testReturnBeforeDeferredRefreshCancelsPendingCandidates() async throws {
@@ -521,6 +605,27 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
             candidates: candidates,
             layout: .vertical,
             client: client,
+        )
+    }
+
+    private func setPredictionSnapshot(
+        buffer: String,
+        predictions: [String],
+        action: DefaultSpaceAction,
+        reason: DefaultSpaceReason
+    ) {
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: buffer,
+            predictions: predictions,
+            defaultSpaceAction: action,
+            reason: reason
+        )
+        CandidateWindow.shared.show(
+            candidates: predictions,
+            defaultSpaceAction: action,
+            literalSpaceText: buffer,
+            layout: .vertical,
+            client: client
         )
     }
 

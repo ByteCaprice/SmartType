@@ -11,11 +11,20 @@ extension InputController {
                 return
             }
 
-            let (predictions, display) = fetchCompletions(limit: Constants.spellCompletionLimit)
+            let result = fetchPredictionResult(limit: Constants.spellCompletionLimit)
+            let display = displayWords(from: result.predictions)
 
-            state.currentPredictions = predictions
+            state.predictionSnapshot = PredictionSnapshot(
+                buffer: state.compositionBuffer,
+                predictions: result.predictions,
+                defaultSpaceAction: result.defaultSpaceAction,
+                reason: result.reason
+            )
             CandidateWindow.shared.show(
                 candidates: display,
+                defaultSpaceAction: result.defaultSpaceAction,
+                defaultSpaceReason: result.reason,
+                literalSpaceText: state.compositionBuffer,
                 layout: ThemeManager.shared.candidateLayout,
                 client: client,
                 candidateSelectionHandler: { [weak self] index in
@@ -32,14 +41,29 @@ extension InputController {
 
     // MARK: - Private
 
-    /// Fetches completions in their original and display-capitalised forms.
-    private func fetchCompletions(limit: Int) -> (predictions: [String], display: [String]) {
-        let rawWords = spellPredictor.completions(
+    private func fetchPredictionResult(limit: Int) -> PredictionResult {
+        spellPredictor.predictionResult(
             prefix: state.compositionBuffer,
-            limit: min(limit, Constants.spellCompletionLimit),
+            limit: min(limit, Constants.spellCompletionLimit)
         )
-        let display = displayWords(from: rawWords)
-        return (rawWords, display)
+    }
+
+    /// Returns the display-capitalised automatic candidate for the current visible
+    /// presentation, or nil when Space should preserve the literal buffer.
+    func defaultSpacePrediction() -> String? {
+        guard CandidateWindow.shared.isVisible,
+              let snapshot = state.predictionSnapshot,
+              snapshot.buffer == state.compositionBuffer,
+              case let .prediction(index) = snapshot.defaultSpaceAction,
+              snapshot.predictions.indices.contains(index)
+        else {
+            return nil
+        }
+
+        return typingRules.preserveCapitalization(
+            original: snapshot.buffer,
+            suggested: snapshot.predictions[index]
+        )
     }
 
     /// Maps raw (original-case) predictions to display-capitalised strings by matching

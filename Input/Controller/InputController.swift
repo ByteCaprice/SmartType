@@ -48,7 +48,7 @@ class InputController: IMKInputController, @unchecked Sendable {
     // MARK: - State + Strategy
 
     let state = InputState()
-    lazy var spellPredictor = SpellCheckPredictor()
+    lazy var spellPredictor: any PredictionProviding = SpellCheckPredictor()
     let keyHandler = LatinKeyHandler()
     let typingRules = EnglishTypingRules.shared
     var pendingTransparentPredictionUpdate: Task<Void, Never>?

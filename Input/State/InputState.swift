@@ -1,9 +1,28 @@
 import Foundation
 
+/// A prediction presentation tied to the exact composition buffer that produced it.
+struct PredictionSnapshot: Equatable, Sendable {
+    let buffer: String
+    let predictions: [String]
+    let defaultSpaceAction: DefaultSpaceAction
+    let reason: DefaultSpaceReason
+}
+
 /// Mutable composition state for `InputController`.
 @MainActor final class InputState {
     var compositionBuffer = ""
-    var currentPredictions: [String] = []
+    var predictionSnapshot: PredictionSnapshot?
+    var currentPredictions: [String] {
+        get { predictionSnapshot?.predictions ?? [] }
+        set {
+            predictionSnapshot = PredictionSnapshot(
+                buffer: compositionBuffer,
+                predictions: newValue,
+                defaultSpaceAction: .literal,
+                reason: .fallbackLiteral
+            )
+        }
+    }
     var didAutoInsertTrailingSpace = false
     var mirrorsClientText = false
     var compositionBaseline: NSRange?
@@ -14,7 +33,7 @@ import Foundation
 
     func reset() {
         compositionBuffer = ""
-        currentPredictions = []
+        predictionSnapshot = nil
         didAutoInsertTrailingSpace = false
         mirrorsClientText = false
         compositionBaseline = nil

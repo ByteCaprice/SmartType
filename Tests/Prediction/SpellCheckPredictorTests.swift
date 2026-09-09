@@ -165,3 +165,133 @@ import XCTest
                        "Fuzzy-guess results must not contain duplicate words: \(results)")
     }
 }
+
+final class SmartSpacePolicyTests: XCTestCase {
+    func testExactCompletionPreservesLiteralRegardlessOfRank() {
+        let result = rank(
+            "app",
+            completions: ["appreciate", "apparently", "app", "appointment", "apply"]
+        )
+
+        XCTAssertEqual(result.defaultSpaceAction, .literal)
+        XCTAssertEqual(result.reason, .exactCompletion)
+        XCTAssertFalse(result.predictions.contains { $0.lowercased() == "app" })
+    }
+
+    func testExactCompletionBeyondDisplayLimitStillPreservesLiteral() {
+        let result = rank("a", completions: ["agent", "and", "are", "also", "a"], limit: 1)
+
+        XCTAssertEqual(result.predictions, ["agent"])
+        XCTAssertEqual(result.defaultSpaceAction, .literal)
+        XCTAssertEqual(result.reason, .exactCompletion)
+    }
+
+    func testPrefixCompletionOutranksCorrectionForAppl() {
+        let result = rank(
+            "appl",
+            completions: ["apply", "apple", "application"],
+            correction: "apple"
+        )
+
+        XCTAssertEqual(result.predictions, ["apply", "apple", "application"])
+        XCTAssertEqual(result.defaultSpaceAction, .prediction(index: 0))
+        XCTAssertEqual(result.reason, .prefixCompletion)
+    }
+
+    func testPrefixCompletionOutranksCorrectionForAppli() {
+        let result = rank(
+            "appli",
+            completions: ["application", "applied"],
+            correction: "apple"
+        )
+
+        XCTAssertEqual(result.predictions, ["application", "applied", "apple"])
+        XCTAssertEqual(result.defaultSpaceAction, .prediction(index: 0))
+    }
+
+    func testAcceptedAbbreviationCanStillCompleteWhenNoExactEvidenceExists() {
+        let result = rank("coord", completions: ["coordinate", "coordinator"])
+
+        XCTAssertEqual(result.defaultSpaceAction, .prediction(index: 0))
+        XCTAssertEqual(result.reason, .prefixCompletion)
+    }
+
+    func testCorrectionIsDefaultWhenNoStrictPrefixExists() {
+        let result = rank("teh", correction: "the", guesses: ["the", "ten"])
+
+        XCTAssertEqual(result.predictions, ["the", "ten"])
+        XCTAssertEqual(result.defaultSpaceAction, .prediction(index: 0))
+        XCTAssertEqual(result.reason, .correction)
+    }
+
+    func testConvenientCorrectionIsDefaultWhenNoPrefixExists() {
+        let result = rank("convinient", correction: "convenient")
+
+        XCTAssertEqual(result.predictions, ["convenient"])
+        XCTAssertEqual(result.defaultSpaceAction, .prediction(index: 0))
+        XCTAssertEqual(result.reason, .correction)
+    }
+
+    func testFuzzyGuessAloneRemainsExplicitChoice() {
+        let result = rank("xqzpl", guesses: ["example"])
+
+        XCTAssertEqual(result.predictions, ["example"])
+        XCTAssertEqual(result.defaultSpaceAction, .literal)
+        XCTAssertEqual(result.reason, .fallbackLiteral)
+    }
+
+    func testLearnedWordIsProtectedFromAutomaticCompletion() {
+        let result = rank("coord", completions: ["coordinate"], isLearnedWord: true)
+
+        XCTAssertEqual(result.defaultSpaceAction, .literal)
+        XCTAssertEqual(result.reason, .protectedLiteral)
+    }
+
+    func testIgnoredWordIsProtectedFromAutomaticCompletion() {
+        let result = rank("coord", completions: ["coordinate"], isIgnoredWord: true)
+
+        XCTAssertEqual(result.defaultSpaceAction, .literal)
+        XCTAssertEqual(result.reason, .protectedLiteral)
+    }
+
+    func testAcronymMixedCaseNonLatinAndDanglingApostropheAreProtected() {
+        for token in ["API", "SwiftType", "中文", "app'"] {
+            let result = rank(token, completions: [token + "More"])
+            XCTAssertEqual(result.defaultSpaceAction, .literal, token)
+            XCTAssertEqual(result.reason, .protectedLiteral, token)
+        }
+    }
+
+    func testOrdinaryContractionsRemainEligible() {
+        XCTAssertTrue(SmartSpacePolicy.isAutomaticCompletionToken("don't"))
+        XCTAssertTrue(SmartSpacePolicy.isAutomaticCompletionToken("I’m"))
+        XCTAssertTrue(SmartSpacePolicy.isAutomaticCompletionToken("Application"))
+    }
+
+    func testEmptyPrefixAndNonPositiveLimitAreSafe() {
+        XCTAssertEqual(rank("", completions: ["anything"]).predictions, [])
+        XCTAssertEqual(rank("app", completions: ["apply"], limit: 0).predictions, [])
+    }
+
+    private func rank(
+        _ prefix: String,
+        completions: [String] = [],
+        correction: String? = nil,
+        guesses: [String] = [],
+        isLearnedWord: Bool = false,
+        isIgnoredWord: Bool = false,
+        limit: Int = 5
+    ) -> PredictionResult {
+        SmartSpacePolicy.rank(
+            prefix: prefix,
+            evidence: SpellCheckEvidence(
+                completions: completions,
+                correction: correction,
+                guesses: guesses,
+                isLearnedWord: isLearnedWord,
+                isIgnoredWord: isIgnoredWord
+            ),
+            limit: limit
+        )
+    }
+}

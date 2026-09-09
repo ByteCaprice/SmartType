@@ -60,12 +60,14 @@
 		NT0000010000000000000007 /* ThemeBuildTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000007 /* ThemeBuildTests.swift */; };
 		NT0000010000000000000011 /* GridCandidateStatePredictionAtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000011 /* GridCandidateStatePredictionAtTests.swift */; };
 		NT0000010000000000000014 /* CandidateWindowUpdateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000014 /* CandidateWindowUpdateTests.swift */; };
+		ST0000010000000000000001 /* SettingsWindowControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST0000020000000000000001 /* SettingsWindowControllerTests.swift */; };
 		NT0000010000000000000017 /* ThemeManagerBorderColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000017 /* ThemeManagerBorderColorTests.swift */; };
 		NT0000010000000000000019 /* GridCandidateStateClampTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NT0000020000000000000019 /* GridCandidateStateClampTests.swift */; };
 		KH0000010000000000000002 /* LatinKeyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = KH0000020000000000000002 /* LatinKeyHandler.swift */; };
 		NF0000010000000000000001 /* LatinKeyHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000001 /* LatinKeyHandlerTests.swift */; };
 		NF0000010000000000000003 /* GridCandidateStateEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000003 /* GridCandidateStateEdgeCaseTests.swift */; };
 		NF0000010000000000000006 /* NotificationNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000006 /* NotificationNameTests.swift */; };
+		UN0000010000000000000001 /* UninstallTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UN0000020000000000000001 /* UninstallTests.swift */; };
 		NF0000010000000000000008 /* ThemeManagerBuildThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF0000020000000000000008 /* ThemeManagerBuildThemeTests.swift */; };
 		NF000001000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NF000002000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift */; };
 		NC0000010000000000000001 /* NotificationCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = NC0000020000000000000001 /* NotificationCounter.swift */; };
@@ -142,12 +144,14 @@
 		NT0000020000000000000007 /* ThemeBuildTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeBuildTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000011 /* GridCandidateStatePredictionAtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStatePredictionAtTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000014 /* CandidateWindowUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateWindowUpdateTests.swift; sourceTree = "<group>"; };
+		ST0000020000000000000001 /* SettingsWindowControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000017 /* ThemeManagerBorderColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerBorderColorTests.swift; sourceTree = "<group>"; };
 		NT0000020000000000000019 /* GridCandidateStateClampTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStateClampTests.swift; sourceTree = "<group>"; };
 		KH0000020000000000000002 /* LatinKeyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatinKeyHandler.swift; sourceTree = "<group>"; };
 		NF0000020000000000000001 /* LatinKeyHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatinKeyHandlerTests.swift; sourceTree = "<group>"; };
 		NF0000020000000000000003 /* GridCandidateStateEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStateEdgeCaseTests.swift; sourceTree = "<group>"; };
 		NF0000020000000000000006 /* NotificationNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationNameTests.swift; sourceTree = "<group>"; };
+		UN0000020000000000000001 /* UninstallTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallTests.swift; sourceTree = "<group>"; };
 		NF0000020000000000000008 /* ThemeManagerBuildThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManagerBuildThemeTests.swift; sourceTree = "<group>"; };
 		NF000002000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellCheckPredictorEdgeCaseTests.swift; sourceTree = "<group>"; };
 		NC0000020000000000000001 /* NotificationCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCounter.swift; sourceTree = "<group>"; };
@@ -385,6 +389,7 @@
 				NT0000020000000000000002 /* ConstantsTests.swift */,
 				PRIV00020000000000000001 /* PrivacyLoggingTests.swift */,
 				NF0000020000000000000006 /* NotificationNameTests.swift */,
+				UN0000020000000000000001 /* UninstallTests.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -438,6 +443,7 @@
 				NT0000020000000000000006 /* ThemeManagerGridValidationTests.swift */,
 				NT0000020000000000000007 /* ThemeBuildTests.swift */,
 				NT0000020000000000000014 /* CandidateWindowUpdateTests.swift */,
+				ST0000020000000000000001 /* SettingsWindowControllerTests.swift */,
 				NT0000020000000000000017 /* ThemeManagerBorderColorTests.swift */,
 				NF0000020000000000000008 /* ThemeManagerBuildThemeTests.swift */,
 			);
@@ -597,11 +603,13 @@
 				NT0000010000000000000007 /* ThemeBuildTests.swift in Sources */,
 				NT0000010000000000000011 /* GridCandidateStatePredictionAtTests.swift in Sources */,
 				NT0000010000000000000014 /* CandidateWindowUpdateTests.swift in Sources */,
+				ST0000010000000000000001 /* SettingsWindowControllerTests.swift in Sources */,
 				NT0000010000000000000017 /* ThemeManagerBorderColorTests.swift in Sources */,
 				NT0000010000000000000019 /* GridCandidateStateClampTests.swift in Sources */,
 				NF0000010000000000000001 /* LatinKeyHandlerTests.swift in Sources */,
 				NF0000010000000000000003 /* GridCandidateStateEdgeCaseTests.swift in Sources */,
 				NF0000010000000000000006 /* NotificationNameTests.swift in Sources */,
+				UN0000010000000000000001 /* UninstallTests.swift in Sources */,
 				NF0000010000000000000008 /* ThemeManagerBuildThemeTests.swift in Sources */,
 				NF000001000000000000000D /* SpellCheckPredictorEdgeCaseTests.swift in Sources */,
 				NC0000010000000000000001 /* NotificationCounter.swift in Sources */,

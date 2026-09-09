@@ -66,25 +66,32 @@ Switch to SwiftType, open any text field, and start typing. The candidate bar ap
 
 ### Candidate selection
 
-| Key | Action |
+SwiftType defaults to **Vertical List**. A visible list does not initially mean that a suggestion is selected, so pressing `Space` preserves the literal word until you activate a selection.
+
+| Key | Vertical List action |
 |---|---|
-| `1`–`6` | Commit the prediction in that column |
-| `Space` | Commit selected prediction |
-| `Return` | Commit current selection |
-| `Escape` | Commit raw text and dismiss |
+| `1`–`7` | Commit the correspondingly numbered visible candidate |
+| `↓` / `Tab` / `→` | Activate the first candidate, then move down |
+| `↑` / `←` | Move up |
+| `Space` | Commit the selected prediction, or preserve literal typing when none is selected |
+| `Return` | Commit the selected prediction; otherwise preserve the word and pass Return to the app |
+| `Escape` | Preserve literal text and dismiss candidates |
 
-### Grid navigation
+### Grid layout
 
-The candidate bar starts collapsed (one row). Press `↓` to expand into a multi-row grid.
+Choose **Grid** in Settings to use a collapsed first row and expandable multi-row candidate bar.
 
-| Key | Action |
+| Key | Grid action |
 |---|---|
-| `↓` | Expand grid / move down |
-| `↑` | Move up / collapse at top |
-| `Tab` / `→` | Cycle column right |
-| `←` | Cycle column left |
+| `↓` | Activate the first candidate / expand grid / move down |
+| `↑` | Move up / collapse at the top |
+| `Tab` / `→` | Move right |
+| `←` | Move left |
+| `1`–`7` | Commit a numbered candidate from the active row |
 
-Number keys always target the **active row**.
+### Browser and passthrough differences
+
+Chrome, Brave, Vivaldi, Opera, and WeCom use transparent prediction so Caps Lock language switching remains reliable. Number shortcuts still select visible candidates, but arrows and Tab belong to the browser and dismiss SwiftType's candidates instead of navigating them. Terminal and VS Code use passthrough mode and intentionally show no suggestions.
 
 ---
 
@@ -141,6 +148,8 @@ defaults write com.matthew.inputmethod.SwiftType transparentPredictionBundleIden
 
 Caps Lock (中/英) switching to other input methods is supported system-wide via the input method's `TICapsLockLanguageSwitchCapable` capability.
 
+SwiftType currently asks InputMethodKit for the US keyboard layout while active. This preserves the physical key-code shortcuts used by the candidate interface. Dvorak, AZERTY, and other physical layouts require explicit compatibility testing before this becomes configurable.
+
 ### Concurrency
 
 Application state is `@MainActor`-isolated under **Swift 6 strict concurrency**. InputMethodKit delivers callbacks on the main thread; the controller verifies that boundary before accessing composition state. Chromium candidate refreshes are asynchronously coalesced on the main actor so key handling can return to the browser before spell-checking and UI work begin.
@@ -154,6 +163,16 @@ xcodebuild -scheme SwiftType -configuration Debug test
 ```
 
 The test suite covers input state, per-app client modes, transparent prediction, grid navigation, key routing, spell-check predictions, privacy-sensitive logging, the theme system, settings persistence, and candidate window behavior.
+
+After installing a changed build, run the manual matrix in [`REAL_CLIENT_ACCEPTANCE.md`](./REAL_CLIENT_ACCEPTANCE.md). It also documents VoiceOver checks and privacy-preserving Instruments signpost measurements.
+
+For a privacy-safe, read-only installation and registration summary, run:
+
+```bash
+./scripts/diagnose.sh
+```
+
+The diagnostic does not restart services, modify input sources, unregister bundles, or collect typed/document text.
 
 ---
 

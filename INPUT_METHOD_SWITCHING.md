@@ -1,0 +1,307 @@
+# SwiftType Input-Method Switching Guide
+
+This guide documents the switching behavior of the current SwiftType implementation. It is intended for maintainers changing InputMethodKit event handling, per-application routing, input-source metadata, or installation behavior.
+
+The switching foundation was introduced by commit `45aa8ba` and refined by `02f45be`. The source tree currently published on `main` matches `02f45be`.
+
+## 1. What Performs the Switch
+
+SwiftType does not select another input source itself. macOS performs the switch.
+
+SwiftType has only two responsibilities when Caps Lock is pressed:
+
+1. Finish or discard any SwiftType composition state that could block switching.
+2. Return `false` from the event handler so the event continues to macOS.
+
+Do not call `TISEnableInputSource`, `TISDisableInputSource`, or `TISSelectInputSource` from the input controller. Programmatically changing the user's input sources creates global state, races with macOS, and does not fix a client that is holding an active marked-text composition.
+
+Apple documents `TICapsLockLanguageSwitchCapable` as enabling Caps Lock switching between Latin and non-Latin input sources. The user must also enable the matching macOS Keyboard setting.
+
+## 2. User Setup
+
+The user needs SwiftType and at least one non-Latin input source, such as a Chinese input method.
+
+1. Open **System Settings > Keyboard > Text Input > Edit**.
+2. Add **SwiftType** if it is not already present.
+3. Add the non-Latin input source that SwiftType should switch to and from.
+4. Enable **Use the Caps Lock key to switch to and from** the Latin input source. The exact label varies by macOS version.
+5. Select SwiftType from the input menu.
+6. Test both Caps Lock and the system's normal input-source shortcut, usually `Control-Space`.
+
+If `Control-Space` works but Caps Lock does not, check the Caps Lock preference, SwiftType metadata, and flags-changed event handling. If neither works, investigate installation, registration, or the active host session first.
+
+## 3. Required Bundle Metadata
+
+The following values in [`Info.plist`](Info.plist) are part of the switching contract:
+
+```xml
+<key>TICapsLockLanguageSwitchCapable</key>
+<true/>
+<key>TISInputSourceID</key>
+<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+<key>TISIntendedLanguage</key>
+<string>en</string>
+<key>tsInputMethodCharacterRepertoireKey</key>
+<array>
+    <string>Latn</string>
+</array>
+<key>InputMethodConnectionName</key>
+<string>$(PRODUCT_BUNDLE_IDENTIFIER)_Connection</string>
+<key>InputMethodServerControllerClass</key>
+<string>InputController</string>
+```
+
+These values tell macOS that SwiftType is a Latin input source, supports Caps Lock language switching, and exposes the expected InputMethodKit connection and controller.
+
+Do not remove or rename these keys as an application-specific workaround. [`Tests/App/ConstantsTests.swift`](Tests/App/ConstantsTests.swift) protects `TICapsLockLanguageSwitchCapable`, `TISInputSourceID`, and `TISIntendedLanguage`; the connection, controller, and repertoire keys still require code-review verification.
+
+## 4. The Critical Event Contract
+
+[`Input/Controller/InputControllerKeyHandling.swift`](Input/Controller/InputControllerKeyHandling.swift) must request both key-down and flags-changed events:
+
+```swift
+override func recognizedEvents(_ sender: Any!) -> Int {
+    Int(NSEvent.EventTypeMask.keyDown.union(.flagsChanged).rawValue)
+}
+```
+
+Caps Lock is a flags-changed event with physical key code `0x39`. The current handler prepares the composition and then passes the event through:
+
+```swift
+if event.type == .flagsChanged, event.keyCode == 0x39,
+   let client = sender as? (any IMKTextInput)
+{
+    MainActor.assumeIsolated {
+        if state.mirrorsClientText
+            || Self.usesTransparentPrediction(bundleIdentifier: client.bundleIdentifier())
+        {
+            discardMirroredComposition()
+        } else if !state.compositionBuffer.isEmpty {
+            commitCompositionForLanguageSwitch(client: client)
+        }
+    }
+    return false
+}
+```
+
+Both parts are mandatory:
+
+| Requirement | Failure when removed |
+|---|---|
+| Include `.flagsChanged` in `recognizedEvents(_:)` | The controller does not receive Caps Lock flags-changed events; switching commonly appears stuck during composition. |
+| Return `false` for Caps Lock | SwiftType consumes the event and macOS cannot perform the switch. |
+| Finish inline marked text before returning | Some clients defer switching while a marked range remains active. |
+| Discard transparent mirror state without inserting it | The client already owns the typed text; inserting it again duplicates text. |
+
+Other flags-changed events, including ordinary Shift state changes, must also pass through unchanged.
+
+## 5. Composition Lifecycle
+
+### Inline mode
+
+TextEdit, Spotlight, Safari, Xcode, Edge, and most applications use inline mode. SwiftType owns an active marked-text composition in this mode.
+
+When Caps Lock is received, `commitCompositionForLanguageSwitch(client:)` performs this order:
+
+1. Clear marked text synchronously with `setMarkedText("")`.
+2. Insert the composition buffer once.
+3. Clear local state and candidates.
+4. Return `false` from `handle(_:client:)`.
+
+The order matters. Inserting first can leave a marked range alive briefly in some clients, which can delay or prevent the switch.
+
+`deactivateServer(_:)` is the safety net. When macOS ends the SwiftType session, it commits an unfinished inline composition and hides the candidate window. It must not replace the Caps Lock event path because deactivation happens only after macOS has decided to switch.
+
+### Transparent-prediction mode
+
+Chrome, Brave, Chromium, Arc, Opera, Vivaldi, and WeCom use transparent prediction. These clients can defer Caps Lock switching while persistent marked text is active.
+
+The invariant is:
+
+> The client owns the typed text. SwiftType owns only a mirror used to calculate predictions.
+
+Therefore transparent mode must:
+
+- Insert printable text into the client without leaving persistent marked text.
+- Return an empty composition from `composedString(_:)` and `originalString(_:)` while mirroring.
+- Let Backspace reach the client while updating only the mirror.
+- Discard mirror state on Caps Lock, deactivation, stale selection, or application changes.
+- Never insert the complete mirror during Caps Lock or deactivation.
+- Use marked text only for the existing one-shot verified replacement operation, completed within the same key event.
+- Preserve the current consume/insert pairing for printable keys; changing only the return value can make Chromium redeliver a key and duplicate characters.
+
+Adding normal inline marked text to transparent mode commonly recreates the original Chromium switching failure.
+
+### Passthrough mode
+
+Terminal applications and VS Code use passthrough mode. SwiftType returns `false` without starting composition so shell line editors and raw-mode applications receive keys unchanged.
+
+Do not remove passthrough applications merely to make candidates appear. That can break terminal editing and is unrelated to input-source switching.
+
+## 6. Per-Application Routing
+
+[`Input/InputClientPolicy.swift`](Input/InputClientPolicy.swift) resolves modes in this order:
+
+1. Missing bundle identifier: inline.
+2. SwiftType's own process: passthrough.
+3. Microsoft Edge and `com.microsoft.edgemac.*`: inline.
+4. Known terminals and VS Code: passthrough.
+5. Known Chromium/CEF clients and explicit user additions: transparent prediction.
+6. Everything else: inline.
+
+The order is intentional. In particular:
+
+- TextEdit and Spotlight must remain on the default inline path.
+- Edge must remain inline even though it is Chromium-based; its fields require the inline behavior used by the current version.
+- Terminal and VS Code passthrough must win before broad Chromium-family detection.
+- A broad substring rule must not accidentally classify unrelated native applications as transparent.
+
+When adding support for a new application, use `client.bundleIdentifier()` as the source of truth. Do not route using `NSWorkspace.frontmostApplication`; the frontmost application and the actual InputMethodKit client can differ.
+
+Only add an application to transparent prediction after reproducing that persistent marked text blocks switching in that application and after testing insertion, correction, Space, Return, Backspace, and candidate selection.
+
+## 7. Safe Change Procedure
+
+Before changing switching behavior:
+
+1. Reproduce the issue in a newly opened host application.
+2. Record whether the issue affects TextEdit and Spotlight, only Chromium clients, or every application.
+3. Confirm whether `Control-Space` still switches input sources.
+4. Confirm which SwiftType binary is running.
+5. Capture the InputController log while pressing Caps Lock.
+6. Change the smallest applicable policy or lifecycle path.
+7. Run automated tests and the real-application matrix below.
+
+Do not globally change all applications to passthrough or transparent mode to fix one client.
+
+## 8. Diagnostics
+
+### Confirm the installed build
+
+```bash
+/usr/libexec/PlistBuddy \
+  -c 'Print :CFBundleVersion' \
+  "$HOME/Library/Input Methods/SwiftType.app/Contents/Info.plist"
+
+codesign --verify --deep --strict --verbose=2 \
+  "$HOME/Library/Input Methods/SwiftType.app"
+
+pgrep -fl 'SwiftType.app/Contents/MacOS/SwiftType'
+```
+
+The running executable must come from `~/Library/Input Methods/SwiftType.app`. A process that started before installation may still represent the previous build.
+
+Check for a second system-wide installation:
+
+```bash
+ls -ld \
+  "$HOME/Library/Input Methods/SwiftType.app" \
+  "/Library/Input Methods/SwiftType.app"
+```
+
+There should not be competing SwiftType bundles with the same bundle identifier. Do not delete anything until the active path and intended installation are confirmed.
+
+### Observe Caps Lock delivery
+
+```bash
+/usr/bin/log stream \
+  --style compact \
+  --level info \
+  --predicate 'subsystem == "com.matthew.inputmethod.SwiftType" AND category == "InputController"'
+```
+
+Press Caps Lock in the failing field and look for:
+
+```text
+Caps Lock event received
+Committing composition before language switch
+```
+
+Interpret the result as follows:
+
+| Observation | Most likely area |
+|---|---|
+| No Caps Lock log in TextEdit or Spotlight | Wrong/stale binary, registration problem, or `.flagsChanged` is no longer requested. |
+| Caps Lock log appears but no switch occurs | Event may be consumed, marked text may remain active, metadata may be wrong, or the macOS Caps Lock preference is disabled. |
+| Native apps work but one Chromium client fails | Per-app policy or transparent composition behavior. |
+| Switching fails only immediately after installation | Host application may still hold its old InputMethodKit connection. |
+| Text is duplicated after switching | Transparent mirror text was incorrectly committed. |
+| Text disappears after switching | Inline composition was discarded instead of committed. |
+
+### Repair stale sessions safely
+
+After rebuilding with `./scripts/install.sh`:
+
+1. Fully quit affected host applications, including TextEdit or the application containing the failing field.
+2. Reopen them and select SwiftType again.
+3. If source metadata or menu entries remain stale, log out and back in.
+4. Recheck the running executable path and build version.
+
+The installer intentionally restarts `TextInputMenuAgent` and `TextInputSwitcher` after replacing and registering the bundle. Manually restarting additional services, or force-killing broad macOS text-input services, is not an input-controller fix and can disrupt other input methods. Use a logout/login for persistent system cache state.
+
+## 9. Required Real-Application Tests
+
+Run this matrix after any change to `Info.plist`, event handling, composition lifecycle, client policy, or installation scripts.
+
+| Application | Expected mode | Test | Expected result |
+|---|---|---|---|
+| TextEdit | Inline | Type `hel`, then press Caps Lock | `hel` is committed exactly once and macOS switches source. |
+| Spotlight | Inline | Open Spotlight, type `hel`, then press Caps Lock | Text remains, no duplicate appears, and the source switches. |
+| TextEdit and Spotlight | Inline | Press Caps Lock before typing | Source switches immediately. |
+| Chrome or Brave | Transparent | Type `hel`, then press Caps Lock | Existing text remains exactly once and the source switches without persistent marked text. |
+| Edge | Inline | Type `hel`, then press Caps Lock | Inline text is committed once and the source switches when the event is delivered. |
+| Terminal | Passthrough | Type shell commands and switch sources | Keys remain unchanged; no candidate composition interferes. |
+| VS Code | Passthrough | Type in editor and integrated terminal | Keys remain unchanged and source switching still works. |
+| Any supported app | Its configured mode | Switch away with `Control-Space` | SwiftType deactivates cleanly without losing or duplicating text. |
+| Any supported app | Its configured mode | Switch back to SwiftType | A new session starts with empty composition state. |
+
+Test switching both before typing and during an active word. Testing only an empty field does not exercise the composition bug.
+
+## 10. Automated Regression Tests
+
+Run the complete suite:
+
+```bash
+xcodebuild -project SwiftType.xcodeproj \
+  -scheme SwiftType \
+  -configuration Debug \
+  test
+```
+
+The most relevant tests are:
+
+| Test file | Contract |
+|---|---|
+| [`Tests/App/ConstantsTests.swift`](Tests/App/ConstantsTests.swift) | Required Info.plist language and Caps Lock metadata. |
+| [`Tests/Input/InputControllerEventRoutingTests.swift`](Tests/Input/InputControllerEventRoutingTests.swift) | `.flagsChanged`, Caps Lock passthrough, inline commit, deactivation, Edge, terminals, and VS Code. |
+| [`Tests/Input/InputControllerTransparentPredictionTests.swift`](Tests/Input/InputControllerTransparentPredictionTests.swift) | No persistent marked text, mirror disposal, no duplicate insertion, and Chromium candidate behavior. |
+| [`Tests/Input/InputClientPolicyTests.swift`](Tests/Input/InputClientPolicyTests.swift) | Per-app mode ordering and hard exceptions. |
+
+Unit tests cannot prove that a real host application forwards every event through InputMethodKit. Keep the real-application matrix mandatory.
+
+## 11. Code Review Checklist
+
+Reject or revise a switching-related change if any answer is "no":
+
+- Does `recognizedEvents(_:)` still include both `.keyDown` and `.flagsChanged`?
+- Does Caps Lock always return `false`?
+- Does inline mode clear marked text before committing during a language switch?
+- Does transparent mode avoid persistent marked text?
+- Does transparent mode discard, rather than insert, mirrored text on switching?
+- Does `deactivateServer(_:)` preserve unfinished inline text without duplicating transparent text?
+- Do TextEdit and Spotlight remain inline?
+- Does Edge remain explicitly inline?
+- Do terminals and VS Code remain passthrough before broad heuristics?
+- Are routing decisions based on the InputMethodKit client's bundle identifier?
+- Are all required `Info.plist` keys unchanged?
+- Were both automated tests and the real-application matrix completed?
+- Were affected host applications reopened after installation?
+
+## 12. Authoritative References
+
+- [Apple: InputMethodKit](https://developer.apple.com/documentation/inputmethodkit)
+- [Apple: IMKInputController](https://developer.apple.com/documentation/inputmethodkit/imkinputcontroller)
+- [Apple: TICapsLockLanguageSwitchCapable](https://developer.apple.com/documentation/bundleresources/information-property-list/ticapslocklanguageswitchcapable)
+- [Apple: NSEvent.EventTypeMask.flagsChanged](https://developer.apple.com/documentation/appkit/nsevent/eventtypemask/flagschanged)
+
+The Apple capability documentation establishes the system-level Caps Lock behavior. SwiftType's event, composition, and per-client rules above are project-specific compatibility requirements derived from the current implementation and regression tests.

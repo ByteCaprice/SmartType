@@ -1,5 +1,21 @@
 import AppKit
 
+protocol UninstallFileManaging {
+    func fileExists(atPath path: String) -> Bool
+    func destinationOfSymbolicLink(atPath path: String) throws -> String
+    func removeItem(at URL: URL) throws
+}
+
+extension FileManager: UninstallFileManaging {}
+
+struct UninstallResult {
+    var removedAppBundle = false
+    var removedApplicationsLink = false
+    var failures: [String] = []
+
+    var succeeded: Bool { failures.isEmpty }
+}
+
 // MARK: - About Tab
 
 extension SettingsWindowController {
@@ -55,7 +71,8 @@ extension SettingsWindowController {
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = "Uninstall SwiftType?"
-        alert.informativeText = "This will remove SwiftType from Input Methods and the Applications folder. You may need to log out for the change to take full effect."
+        alert.informativeText = "This removes the SwiftType app, but does not change your configured input sources or preferences. "
+            + "Switch to another input source first; afterward, remove SwiftType in System Settings and log out if it still appears."
 
         let uninstallButton = alert.addButton(withTitle: "Uninstall")
         uninstallButton.hasDestructiveAction = true
@@ -71,23 +88,57 @@ extension SettingsWindowController {
         let appBundle = URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent("Library/Input Methods/SwiftType.app")
         let applicationsSymlink = URL(fileURLWithPath: "/Applications/SwiftType.app")
+        let result = Self.removeInstallation(
+            appBundle: appBundle,
+            applicationsSymlink: applicationsSymlink
+        )
 
-        removeItem(at: appBundle)
-
-        if (try? FileManager.default.destinationOfSymbolicLink(atPath: applicationsSymlink.path)) != nil {
-            removeItem(at: applicationsSymlink)
+        let alert = NSAlert()
+        if result.succeeded {
+            Log.settings.info("Uninstall completed successfully")
+            alert.alertStyle = .informational
+            alert.messageText = "SwiftType Removed"
+            alert.informativeText = "Switch to another input source, remove SwiftType from System Settings → Keyboard → Text Input, "
+                + "then log out if it still appears. Your preferences were preserved."
+            alert.addButton(withTitle: "Quit SwiftType")
+            alert.runModal()
+            NSApp.terminate(nil)
+        } else {
+            Log.settings.error("Uninstall finished with removal failures")
+            alert.alertStyle = .critical
+            alert.messageText = "SwiftType Couldn’t Be Completely Removed"
+            alert.informativeText = result.failures.joined(separator: "\n")
+                + "\n\nSwiftType will remain open so you can retry or remove the listed item manually."
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
-
-        Log.settings.info("Uninstall complete; terminating")
-        NSApp.terminate(nil)
     }
 
-    private func removeItem(at url: URL) {
-        do {
-            try FileManager.default.removeItem(at: url)
-            Log.settings.info("Removed uninstall item")
-        } catch {
-            Log.settings.error("Failed to remove uninstall item")
+    static func removeInstallation(
+        appBundle: URL,
+        applicationsSymlink: URL,
+        fileManager: any UninstallFileManaging = FileManager.default
+    ) -> UninstallResult {
+        var result = UninstallResult()
+
+        if fileManager.fileExists(atPath: appBundle.path) {
+            do {
+                try fileManager.removeItem(at: appBundle)
+                result.removedAppBundle = true
+            } catch {
+                result.failures.append("Could not remove \(appBundle.path). Check its permissions.")
+            }
         }
+
+        if (try? fileManager.destinationOfSymbolicLink(atPath: applicationsSymlink.path)) != nil {
+            do {
+                try fileManager.removeItem(at: applicationsSymlink)
+                result.removedApplicationsLink = true
+            } catch {
+                result.failures.append("Could not remove \(applicationsSymlink.path). Administrator permission may be required.")
+            }
+        }
+
+        return result
     }
 }

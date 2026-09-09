@@ -2,6 +2,7 @@ import AppKit
 
 @MainActor final class SettingsWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
     static let shared = SettingsWindowController()
+    static let frameAutosaveName = "SwiftTypeSettingsWindow"
 
     enum Tab: String, CaseIterable {
         case customization
@@ -32,6 +33,8 @@ import AppKit
     var candidateCountPopUp: NSPopUpButton!
     var gridRowsPopUp: NSPopUpButton!
     var candidateLayoutPopUp: NSPopUpButton!
+    var candidatePreview: CandidateView?
+    var candidatePreviewBackground: NSVisualEffectView?
 
     var customizationPane: NSView?
     var aboutPane: NSView?
@@ -54,6 +57,7 @@ import AppKit
     private convenience init() {
         let window = Self.makeWindow()
         self.init(window: window)
+        windowFrameAutosaveName = Self.frameAutosaveName
         window.delegate = self
         setupToolbar()
         selectTab(.customization, animate: false)
@@ -64,7 +68,6 @@ import AppKit
         selectTab(tab, animate: window?.isVisible == true)
         NSApp.setActivationPolicy(.regular)
         window?.collectionBehavior = .canJoinAllSpaces
-        window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window?.collectionBehavior = []

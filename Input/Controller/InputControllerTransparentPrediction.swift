@@ -52,6 +52,16 @@ extension InputController {
         return handleTransparentCharacterInput(characters, client: client)
     }
 
+    func selectTransparentCandidateByIndex(_ index: Int, client: any IMKTextInput) {
+        guard state.currentPredictions.indices.contains(index) else { return }
+        let prediction = state.currentPredictions[index]
+        let word = typingRules.preserveCapitalization(
+            original: state.compositionBuffer,
+            suggested: prediction
+        )
+        _ = commitTransparentWord(word, trailingSpace: true, client: client)
+    }
+
     func discardMirroredComposition() {
         state.compositionBuffer = ""
         state.mirrorsClientText = false
@@ -212,19 +222,25 @@ extension InputController {
     }
 
     private func scheduleTransparentPredictionUpdate(client: any IMKTextInput) {
-        pendingTransparentPredictionUpdate?.cancel()
+        cancelPredictions()
         let buffer = state.compositionBuffer
+        let generation = transparentPredictionGeneration
         pendingTransparentPredictionUpdate = Task { @MainActor [weak self] in
             do {
-                try await Task.sleep(for: .milliseconds(75))
+                try await self?.waitForTransparentPredictionDebounce()
             } catch {
                 return
             }
             guard let self,
                   !Task.isCancelled,
+                  self.transparentPredictionGeneration == generation,
                   self.state.mirrorsClientText,
                   self.state.compositionBuffer == buffer
             else {
+                return
+            }
+            guard !self.isMirroredCompositionStale(client: client) else {
+                self.discardMirroredComposition()
                 return
             }
             self.pendingTransparentPredictionUpdate = nil

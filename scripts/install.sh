@@ -9,19 +9,15 @@ PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${PROJECT_DIR}/build/${CONFIGURATION}"
 BUILD_VERSION="$(date -u +%Y%m%d%H%M%S)"
 APP_PATH="${BUILD_DIR}/${APP_NAME}.app"
-DEBUG_APP_PATH="${PROJECT_DIR}/build/Debug/${APP_NAME}.app"
 INPUT_METHODS_DIR="${HOME}/Library/Input Methods"
 DESTINATION="${INPUT_METHODS_DIR}/${APP_NAME}.app"
 STAGING="${INPUT_METHODS_DIR}/.${APP_NAME}.app.installing"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+# shellcheck source=release/pkg-scripts/install-common.sh
+source "${SCRIPT_DIR}/release/pkg-scripts/install-common.sh"
 
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
-
-# A stale Debug copy with the same bundle ID can shadow the installed input source.
-if [[ "${CONFIGURATION}" != "Debug" ]]; then
-    rm -rf "${DEBUG_APP_PATH}"
-fi
 
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
     xcodebuild \
@@ -33,7 +29,6 @@ DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
     CLANG_COVERAGE_MAPPING=NO \
     CLANG_ENABLE_CODE_COVERAGE=NO \
     ENABLE_CODE_COVERAGE=NO \
-    REGISTER_WITH_LAUNCH_SERVICES=NO \
     build
 
 codesign --verify --deep --strict "${APP_PATH}"
@@ -44,18 +39,15 @@ ditto "${APP_PATH}" "${STAGING}"
 codesign --verify --deep --strict "${STAGING}"
 
 killall "${APP_NAME}" 2>/dev/null || true
-if [[ -d "${DESTINATION}" ]]; then
-    rsync -a --delete "${STAGING}/" "${DESTINATION}/"
-    rm -rf "${STAGING}"
-else
-    mv "${STAGING}" "${DESTINATION}"
-fi
+swifttype_transactional_install \
+    "${STAGING}" \
+    "${DESTINATION}" \
+    "$(id -un):$(id -gn)"
+rm -rf "${STAGING}"
 touch "${INPUT_METHODS_DIR}"
 "${LSREGISTER}" -f -R -trusted "${DESTINATION}"
-killall imklaunchagent 2>/dev/null || true
 killall TextInputMenuAgent 2>/dev/null || true
-killall -9 TextInputSwitcher 2>/dev/null || true
-killall -9 CursorUIViewService 2>/dev/null || true
+killall TextInputSwitcher 2>/dev/null || true
 codesign --verify --deep --strict "${DESTINATION}"
 
 printf 'SwiftType installed to %s\n' "${DESTINATION}"

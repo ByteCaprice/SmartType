@@ -13,6 +13,7 @@ import AppKit
     /// inside `apply(highlighted:color:radius:)` so the single `didSet` on
     /// `isHighlighted` sees the already-updated color value.
     var highlightColor: NSColor = .clear
+    var onAccessibilityPress: (@MainActor () -> Bool)?
 
     init(label: NSTextField) {
         self.label = label
@@ -43,6 +44,10 @@ import AppKit
         highlightColor = color
         layer?.cornerRadius = radius
         isHighlighted = highlighted
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        onAccessibilityPress?() ?? false
     }
 
     private func updateLayerBackground() {
@@ -79,6 +84,10 @@ import AppKit
     private var selectedTextColor = NSColor.alternateSelectedControlTextColor
     private var pillRadius: CGFloat = 6
     private var cachedTheme: Theme = .defaultTheme
+    private(set) var accessibilityCandidateLabels: [String] = []
+    private(set) var accessibilitySelectedCandidateLabel: String?
+    var candidateSelectionHandler: (@MainActor (Int) -> Void)?
+    private var accessibilitySelectionIndex: Int?
 
     // MARK: - Init
 
@@ -88,6 +97,7 @@ import AppKit
         setupView()
         rebuildCachedThemeValues()
         observeThemeChanges()
+        configureAccessibility()
     }
 
     required init?(coder: NSCoder) {
@@ -96,6 +106,7 @@ import AppKit
         setupView()
         rebuildCachedThemeValues()
         observeThemeChanges()
+        configureAccessibility()
     }
 
     // MARK: - Setup
@@ -113,6 +124,9 @@ import AppKit
             let rowCells: [HighlightContainerView] = (0 ..< maxCols).map { _ in
                 let container = HighlightContainerView(label: Self.makeLabelField())
                 container.isHidden = true
+                container.setAccessibilityElement(true)
+                container.setAccessibilityRole(.row)
+                container.setAccessibilityHidden(true)
                 return container
             }
             cells.append(rowCells)
@@ -141,7 +155,7 @@ import AppKit
         ])
 
         // Separators are centred in the compact inter-row gap.
-        for r in 0 ..< maxRows - 1 {
+        for rowIndex in 0 ..< maxRows - 1 {
             let separator = NSView()
             separator.wantsLayer = true
             separator.translatesAutoresizingMaskIntoConstraints = false
@@ -151,7 +165,7 @@ import AppKit
                 separator.heightAnchor.constraint(equalToConstant: 0.5),
                 separator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
                 separator.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-                separator.topAnchor.constraint(equalTo: cells[r][0].bottomAnchor, constant: 1.25),
+                separator.topAnchor.constraint(equalTo: cells[rowIndex][0].bottomAnchor, constant: 1.25),
             ])
             separators.append(separator)
         }
@@ -166,7 +180,19 @@ import AppKit
         label.font = .systemFont(ofSize: 14)
         label.lineBreakMode = .byTruncatingTail
         label.isHidden = true
+        label.setAccessibilityElement(false)
         return label
+    }
+
+    private func configureAccessibility() {
+        setAccessibilityElement(true)
+        setAccessibilityRole(.list)
+        setAccessibilityLabel("SwiftType candidates")
+        gridView.setAccessibilityElement(false)
+        setAccessibilityRows([])
+        setAccessibilityVisibleRows([])
+        setAccessibilitySelectedRows([])
+        setAccessibilityChildren([])
     }
 
     // MARK: - Theme observation
@@ -294,6 +320,7 @@ import AppKit
                     renderPredictionCell(
                         container,
                         text: state.predictions[predIdx],
+                        predictionIndex: predIdx,
                         selectionLabel: selectionLabel,
                         isActive: isActive,
                         showNumber: showNumber,
@@ -306,9 +333,11 @@ import AppKit
             }
         }
 
-        for (i, separator) in separators.enumerated() {
-            separator.isHidden = layout == .vertical || gridView.row(at: i + 1).isHidden
+        for (index, separator) in separators.enumerated() {
+            separator.isHidden = layout == .vertical || gridView.row(at: index + 1).isHidden
         }
+
+        synchronizeAccessibility()
     }
 
     // MARK: - Cell rendering
@@ -343,12 +372,21 @@ import AppKit
         container.label.attributedStringValue = attributed
         container.label.isHidden = false
         container.isHidden = false
+        configureAccessibilityCell(
+            container,
+            text: text,
+            shortcut: showNumber ? selectionLabel : nil,
+            isLiteral: true,
+            isSelected: isActive,
+            predictionIndex: nil
+        )
         container.apply(highlighted: isActive, color: pillColor, radius: pillRadius)
     }
 
     private func renderPredictionCell(
         _ container: HighlightContainerView,
         text: String,
+        predictionIndex: Int,
         selectionLabel: Int,
         isActive: Bool,
         showNumber: Bool,
@@ -368,7 +406,85 @@ import AppKit
         container.label.attributedStringValue = attributed
         container.label.isHidden = false
         container.isHidden = false
+        configureAccessibilityCell(
+            container,
+            text: text,
+            shortcut: showNumber ? selectionLabel : nil,
+            isLiteral: false,
+            isSelected: isActive,
+            predictionIndex: predictionIndex
+        )
         container.apply(highlighted: isActive, color: pillColor, radius: pillRadius)
+    }
+
+    // MARK: - Accessibility
+
+    func performAccessibilityCandidateSelection(at index: Int) -> Bool {
+        let visibleCells = cells.flatMap { row in
+            row.filter { !$0.isHidden && !$0.label.stringValue.isEmpty }
+        }
+        guard visibleCells.indices.contains(index) else { return false }
+        return visibleCells[index].accessibilityPerformPress()
+    }
+
+    func clearAccessibilityCandidates() {
+        guard !accessibilityCandidateLabels.isEmpty else { return }
+        accessibilityCandidateLabels = []
+        accessibilitySelectedCandidateLabel = nil
+        accessibilitySelectionIndex = nil
+        candidateSelectionHandler = nil
+        setAccessibilityRows([])
+        setAccessibilityVisibleRows([])
+        setAccessibilitySelectedRows([])
+        setAccessibilityChildren([])
+    }
+
+    private func configureAccessibilityCell(
+        _ container: HighlightContainerView,
+        text: String,
+        shortcut: Int?,
+        isLiteral: Bool,
+        isSelected: Bool,
+        predictionIndex: Int?
+    ) {
+        let candidateDescription = isLiteral ? "literal text, \(text)" : text
+        let label = shortcut.map { "\($0), \(candidateDescription)" } ?? candidateDescription
+        container.setAccessibilityLabel(label)
+        container.setAccessibilitySelected(isSelected)
+        container.setAccessibilityHidden(false)
+        if let predictionIndex, let candidateSelectionHandler {
+            container.onAccessibilityPress = {
+                candidateSelectionHandler(predictionIndex)
+                return true
+            }
+        } else {
+            container.onAccessibilityPress = nil
+        }
+    }
+
+    private func synchronizeAccessibility() {
+        let visibleCells = cells.flatMap { row in
+            row.filter { !$0.isHidden && !$0.label.stringValue.isEmpty }
+        }
+        for (index, cell) in visibleCells.enumerated() {
+            cell.setAccessibilityIndex(index)
+        }
+
+        let labels = visibleCells.compactMap { $0.accessibilityLabel() }
+        let selectedIndex = visibleCells.firstIndex { $0.isAccessibilitySelected() }
+        let selectionChanged = selectedIndex != accessibilitySelectionIndex
+
+        accessibilityCandidateLabels = labels
+        accessibilitySelectedCandidateLabel = selectedIndex.map { labels[$0] }
+        accessibilitySelectionIndex = selectedIndex
+        setAccessibilityRows(visibleCells)
+        setAccessibilityVisibleRows(visibleCells)
+        setAccessibilitySelectedRows(selectedIndex.map { [visibleCells[$0]] } ?? [])
+        setAccessibilityChildren(visibleCells)
+
+        if selectionChanged, selectedIndex != nil {
+            NSAccessibility.post(element: self, notification: .selectedRowsChanged)
+        }
     }
 
     // MARK: - Helpers
@@ -378,6 +494,10 @@ import AppKit
         container.label.isHidden = true
         container.isHidden = true
         container.isHighlighted = false
+        container.setAccessibilityLabel(nil)
+        container.setAccessibilitySelected(false)
+        container.setAccessibilityHidden(true)
+        container.onAccessibilityPress = nil
     }
 
     private func hideAllCells(inVisibleRow rowIndex: Int) {

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Stop only SwiftType itself. The existing bundle remains in place until the
+# postinstall has validated a complete replacement and can swap it transactionally.
+/usr/bin/pkill -x SwiftType 2>/dev/null || true

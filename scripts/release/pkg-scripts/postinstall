@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(/usr/bin/dirname "$0")" && pwd)"
+# shellcheck source=install-common.sh
+source "${SCRIPT_DIR}/install-common.sh"
+
+APP_NAME="SwiftType"
+STAGING_DIR="/private/tmp/swifttype_pkg_payload"
+STAGED_APP="${STAGING_DIR}/${APP_NAME}.app"
+SYSTEM_INSTALL="/Library/Input Methods/${APP_NAME}.app"
+APPLICATIONS_LINK="/Applications/${APP_NAME}.app"
+
+if [[ ! -d "${STAGING_DIR}" || -L "${STAGING_DIR}" || "$(/usr/bin/stat -f %u "${STAGING_DIR}")" != "0" ]]; then
+    printf 'ERROR: The package staging directory is missing, linked, or not owned by root.\n' >&2
+    exit 1
+fi
+
+LOGGED_IN_USER=$(/usr/bin/stat -f %Su /dev/console 2>/dev/null || true)
+if [[ -z "${LOGGED_IN_USER}" || "${LOGGED_IN_USER}" == "root" ]]; then
+    printf 'ERROR: No logged-in GUI user was found. Sign in and run the SwiftType installer again.\n' >&2
+    exit 1
+fi
+
+USER_UID=$(/usr/bin/id -u "${LOGGED_IN_USER}" 2>/dev/null) || {
+    printf 'ERROR: The console user does not exist: %s\n' "${LOGGED_IN_USER}" >&2
+    exit 1
+}
+if (( USER_UID < 500 )); then
+    printf 'ERROR: Refusing to install for system account %s.\n' "${LOGGED_IN_USER}" >&2
+    exit 1
+fi
+
+USER_HOME=$(/usr/bin/dscl . -read "/Users/${LOGGED_IN_USER}" NFSHomeDirectory 2>/dev/null \
+    | /usr/bin/sed -n 's/^NFSHomeDirectory: //p')
+if [[ -z "${USER_HOME}" || "${USER_HOME}" == "/" || ! -d "${USER_HOME}" || -L "${USER_HOME}" ]]; then
+    printf 'ERROR: Cannot safely resolve the home directory for %s.\n' "${LOGGED_IN_USER}" >&2
+    exit 1
+fi
+if [[ "$(/usr/bin/stat -f %u "${USER_HOME}")" != "${USER_UID}" ]]; then
+    printf 'ERROR: The resolved home directory is not owned by %s.\n' "${LOGGED_IN_USER}" >&2
+    exit 1
+fi
+
+USER_GROUP=$(/usr/bin/id -gn "${LOGGED_IN_USER}")
+INPUT_METHODS_DIR="${USER_HOME}/Library/Input Methods"
+DESTINATION="${INPUT_METHODS_DIR}/${APP_NAME}.app"
+
+swifttype_transactional_install \
+    "${STAGED_APP}" \
+    "${DESTINATION}" \
+    "${LOGGED_IN_USER}:${USER_GROUP}"
+
+# Remove the legacy system-wide copy only after a valid user installation exists.
+if [[ -e "${SYSTEM_INSTALL}" || -L "${SYSTEM_INSTALL}" ]]; then
+    /bin/rm -rf "${SYSTEM_INSTALL}"
+fi
+/bin/rm -rf "/Library/Caches/com.matthew.inputmethod.SwiftType"
+/bin/rm -rf "${USER_HOME}/Library/Caches/com.matthew.inputmethod.SwiftType"
+/bin/rm -rf "${USER_HOME}/Library/Saved Application State/com.matthew.inputmethod.SwiftType.savedState"
+/bin/rm -rf "${STAGING_DIR}"
+
+/usr/bin/touch "${INPUT_METHODS_DIR}"
+if [[ -L "${APPLICATIONS_LINK}" ]]; then
+    /bin/ln -sfn "${DESTINATION}" "${APPLICATIONS_LINK}"
+elif [[ ! -e "${APPLICATIONS_LINK}" ]]; then
+    /bin/ln -s "${DESTINATION}" "${APPLICATIONS_LINK}"
+else
+    printf 'WARNING: %s exists and is not a symlink; it was left unchanged.\n' "${APPLICATIONS_LINK}" >&2
+fi
+
+printf 'SwiftType installed to: %s\n' "${DESTINATION}"
+printf 'Log out and back in if existing applications cannot connect to SwiftType.\n'

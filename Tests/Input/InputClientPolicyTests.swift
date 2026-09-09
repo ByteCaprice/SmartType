@@ -29,6 +29,7 @@ final class InputClientPolicyTests: XCTestCase {
 
     func testNativeEditorsStayInline() {
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.TextEdit", defaults: defaults), .inline)
+        XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.Spotlight", defaults: defaults), .inline)
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.dt.Xcode", defaults: defaults), .inline)
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.Safari", defaults: defaults), .inline)
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: nil, defaults: defaults), .inline)

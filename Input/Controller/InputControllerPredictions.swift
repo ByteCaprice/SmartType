@@ -5,19 +5,29 @@ extension InputController {
     // MARK: - Predictions
 
     func updatePredictions(client: any IMKTextInput) {
-        guard !state.compositionBuffer.isEmpty else {
-            cancelPredictions()
-            return
+        PerformanceTrace.measure("Prediction update") {
+            guard !state.compositionBuffer.isEmpty else {
+                cancelPredictions()
+                return
+            }
+
+            let (predictions, display) = fetchCompletions(limit: Constants.spellCompletionLimit)
+
+            state.currentPredictions = predictions
+            CandidateWindow.shared.show(
+                candidates: display,
+                layout: ThemeManager.shared.candidateLayout,
+                client: client,
+                candidateSelectionHandler: { [weak self] index in
+                    guard let self else { return }
+                    if self.state.mirrorsClientText {
+                        self.selectTransparentCandidateByIndex(index, client: client)
+                    } else {
+                        self.selectCandidateByIndex(index, client: client)
+                    }
+                }
+            )
         }
-
-        let (predictions, display) = fetchCompletions(limit: Constants.spellCompletionLimit)
-
-        state.currentPredictions = predictions
-        CandidateWindow.shared.show(
-            candidates: display,
-            layout: ThemeManager.shared.candidateLayout,
-            client: client,
-        )
     }
 
     // MARK: - Private

@@ -1,6 +1,6 @@
 # SwiftType Developer Handoff
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 
 This document supersedes the previous 2026-09-04 handoff. It describes the current source, the local troubleshooting outcome, pending changes, and the recommended next work. Historical observations are explicitly labeled; do not mistake them for fresh checks or current failures.
 
@@ -8,9 +8,9 @@ This document supersedes the previous 2026-09-04 handoff. It describes the curre
 
 SwiftType is an English-only, offline macOS input method built with Swift 6, AppKit, InputMethodKit, and the system spell checker. It offers word completions/corrections through a floating candidate panel. It has no network prediction dependency.
 
-**Current user-visible status:** the user confirmed that, after completely quitting and reopening the affected applications, the new `S` input-source icon appears and language switching works normally. The latest confirmation was: "After restarting the apps, everything is normal; they can all switch normally." There is no outstanding user-reported switching failure to reproduce at handoff time.
+**Current user-visible status:** after the installed guide-compliant build encountered a stale `imklaunchagent` connection refusal, restarting macOS restored normal input and Caps Lock language switching in TextEdit and Spotlight. SwiftType is operating normally. Preserve this known-good routing and input-source metadata.
 
-**Current assignment:** the user requested a broad improvement review, then this detailed handoff for another developer. Suggestions are in [IMPROVEMENT_REVIEW.md](./IMPROVEMENT_REVIEW.md). Those suggestions have not been implemented. Do not treat the report as blanket authorization to change every area at once.
+**Current assignment:** the user authorized the remaining work from [IMPROVEMENT_REVIEW.md](./IMPROVEMENT_REVIEW.md) after Phases 1–3. The worktree now also contains performance signposts, candidate accessibility semantics/actions, stable caret fallback, Settings polish/preview, stronger preference validation, and `REAL_CLIENT_ACCEPTANCE.md`. Automated verification passed; the optimized build has deliberately not replaced the currently working installation. Real-client, VoiceOver, positioning, and latency checks remain necessary after a future install.
 
 Recommended first steps for the next developer:
 
@@ -27,23 +27,15 @@ Recommended first steps for the next developer:
 | --- | --- |
 | Workspace | `/Users/developer/coding/SwiftType` |
 | Branch | `main` |
-| Implementation baseline before this handoff commit | `02f45be` - `Improve prediction reliability and candidate UI` |
-| Previous implementation commit | `45aa8ba` - `Rework input handling: English-only, Caps Lock switching, per-app client modes` |
-| Tracking branch | `github/main`; local tracking state shows no ahead/behind difference |
+| Current committed baseline | `0abe996` - `Document current state and harden installation` |
+| Earlier implementation commits | `02f45be` - prediction/candidate reliability; `45aa8ba` - English-only input, Caps Lock switching, and per-app modes |
+| Private tracking branch | `github/main`; at the latest review, local `main` was 0 ahead / 2 behind because the remote reverted `0abe996` and then added `INPUT_METHOD_SWITCHING.md` |
 | Private working remote | `github` = `https://github.com/ByteCaprice/SwiftType.git` |
 | Public upstream | `origin` = `https://github.com/mgxv/SwiftType.git` |
 
-Always refresh remote state before publishing; branch information in documentation becomes historical immediately. Never accidentally push private work to `origin`.
+Always refresh remote state before publishing; branch information in documentation becomes historical immediately. Never accidentally push private work to `origin`. The remote switching guide was copied into the worktree as a specification only; remote source did not replace local `main`.
 
-Changes prepared together for the handoff commit:
-
-| File | Purpose |
-| --- | --- |
-| `scripts/install.sh` | Installation-hardening change from the preceding troubleshooting session |
-| `IMPROVEMENT_REVIEW.md` | Improvement report from the source review |
-| `HANDOFF.md` | Current developer handoff |
-
-No production Swift files were changed during the review or handoff. The previous handoff's claim of numerous uncommitted architecture changes is obsolete: the relevant source work is now in the commits above. Always recheck the worktree rather than relying permanently on this snapshot.
+The installation, prediction scheduling, instrumentation, accessibility, positioning, settings, documentation, and test improvements described below are currently uncommitted working-tree changes on top of `0abe996`. Review `git status` and commit them in logical groups. Preserve the untracked `INPUT_METHOD_SWITCHING.md` intentionally or decide explicitly whether it belongs in a commit.
 
 ## 3. Installed Application and Local Environment
 
@@ -241,24 +233,15 @@ An old `/private/tmp/swifttype-test-dd/Build/Products/Debug/SwiftType.app` entry
 
 ## 9. Installer Hardening Included With This Handoff
 
-The `scripts/install.sh` change included with this handoff adds:
+Both local and PKG installation now use `scripts/release/pkg-scripts/install-common.sh` to validate the source bundle, copy it to a same-directory temporary location, verify the copied signature, retain the previous installation during the swap, and restore it if post-swap validation fails.
 
-- Removal of `build/Debug/SwiftType.app` when installing a non-Debug configuration.
-- `REGISTER_WITH_LAUNCH_SERVICES=NO` for its build.
-- Restart of `imklaunchagent` in addition to the input menu agent.
-- Forced termination of `TextInputSwitcher` and `CursorUIViewService` during installation.
+The PKG scripts are checked-in and testable rather than generated heredocs. They use strict shell behavior, fail when there is no GUI user, preserve home paths containing spaces, validate ownership, reject unexpected destination symlinks, and remove legacy/system copies only after the user installation succeeds. The preinstall no longer deletes the working installation.
 
-The script already builds before replacing the installed copy, verifies build/staging signatures, uses in-place `rsync` for an existing destination, registers the destination, and prints instructions to reopen existing host apps. Those existing instructions are not new changes in the patch.
+Ordinary local installation does not restart `imklaunchagent` or force-kill shared cursor services. It refreshes the normal text-input menu/switcher agents and instructs the user to log out and back in if hosts cannot reconnect. Broad repair actions remain manual and separate.
 
-Verification performed for this patch: shell syntax passed, whitespace diff check passed, and `xcodebuild -showBuildSettings` echoed `REGISTER_WITH_LAUNCH_SERVICES = NO`. A printed build setting alone is not proof of full registration/discovery behavior. **The patched installer has not been rerun end to end after these additions.** The working user session was not disrupted to test it.
+The isolated shell harness at `scripts/release/tests/test_pkg_install.sh` never touches the active input method. Its ten cases cover missing/invalid/corrupt payloads, successful replacement, error/signal rollback, failed first installation, unwritable destination, and file/directory symlink rejection. `scripts/release/tests/test_diagnose.sh` verifies the read-only diagnostic against an isolated home. A real generated PKG installation in a disposable environment remains recommended before public distribution.
 
-Follow-up review considerations:
-
-- Shared-service termination affects more than SwiftType. Decide whether broad resets should be an explicit repair option rather than routine installation.
-- The local Release build still remains on disk, and arbitrary DerivedData copies are not removed. This is not a comprehensive duplicate-bundle prevention solution.
-- In-place copy failure has no rollback despite strict shell error handling.
-- Keep cleanup limited to known owned artifacts, never arbitrary app bundles or input-source settings.
-- Release packaging uses a separate build/install path and does not automatically inherit these changes.
+Phase 1–3 verification on 2026-09-08: shell syntax and whitespace checks passed, the original installer harness passed 4/4, the full isolated Xcode suite passed 533 tests with 0 failures, and the independent Tester returned PASS. After the remaining improvements, the final isolated Xcode suite passed 543 tests with 0 failures. The expanded installer harness passed 10/10, the diagnostic harness and live redaction check passed, and a third independent Tester returned PASS. Temporary DerivedData was removed afterward. Xcode still emitted LaunchServices registration commands despite requesting `REGISTER_WITH_LAUNCH_SERVICES=NO`; the resulting paths no longer exist, and no automated unregister operation was performed.
 
 ## 10. Improvement Review and Next Work
 
@@ -266,14 +249,14 @@ Follow-up review considerations:
 
 | Priority area | Main finding / recommended work |
 | --- | --- |
-| Package safety | Generated preinstall deletes the old installation early; postinstall lacks checked critical operations and can report success without a user installation. Validate payload/user first and preserve recovery. |
-| Uninstall UX | Removal errors are swallowed into generic logs, then the app terminates and reports completion. Surface partial/failure outcomes and explain manual source removal. |
-| Performance measurement | Profile inline spell-check stages, client IPC, and panel layout before changing scheduling/ranking. Measure cold/warm and end-to-end suggestion latency. |
-| Candidate freshness | Delayed tasks validate buffer/cancellation but not current selection before show; stale visible candidates can remain during debounce. Add reproducible tests and define selection semantics. |
-| Shortcut clarity | README focuses on grid despite vertical default and does not fully distinguish inline/transparent behavior. Add concise in-app help. |
-| Accessibility | Candidate UI lacks explicit list/selection semantics. Inspect actual VoiceOver behavior before claiming it is inaccessible; avoid announcements on every key. |
-| Positioning | Prefer a valid same-session caret anchor over an unrelated mouse location when possible; test multiple displays and missing geometry. |
-| Settings polish | Clarify reset scope, validate stored opacity, retain settings frame, consider a small appearance preview. |
+| Package safety | Implemented transactionally with validation, rollback, strict scripts, and isolated shell tests; disposable-environment PKG acceptance remains. |
+| Uninstall UX | Implemented actionable success/partial-failure reporting; preferences and configured input sources remain user-controlled. |
+| Performance measurement | Points of Interest now cover total key handling, prediction stages, geometry, rendering, and presentation without text metadata. Collect real cold/warm p50/p95/p99 measurements before tuning. |
+| Candidate freshness | Implemented generation-bound refreshes, selection revalidation, stale-candidate hiding, `NSNotFound` fallback, and deterministic tests. |
+| Shortcut clarity | Implemented separate Vertical/Grid and client-mode guidance in README and the status-menu help. |
+| Accessibility | Candidate list/row labels, hidden-row exclusion, selected state, selection notifications, and press actions are implemented. Perform the live VoiceOver matrix before claiming completion. |
+| Positioning | Current attributes and first-rect geometry now fall back to a valid recent same-client/session anchor before the mouse. Test multiple displays and missing geometry. |
+| Settings polish | Reset scope/confirmation, opacity and grid-column validation, frame autosave, and a fixed-data live preview are implemented. |
 | Tests/docs | Deterministic debounce tests, real-client acceptance, isolated installer failure tests, current documentation. |
 
 Suggested sequence: safety/clarity, measurement, measured responsiveness changes, then accessibility/positioning/polish. Avoid a prediction-engine rewrite or network service. No latency numbers were collected in this review; do not advertise a speedup based only on source inspection.

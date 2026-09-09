@@ -10,3 +10,16 @@ enum Log {
 
     private static let subsystem = Bundle.main.bundleIdentifier!
 }
+
+enum PerformanceTrace {
+    static let signposter = OSSignposter(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.matthew.inputmethod.SwiftType",
+        category: "Performance"
+    )
+
+    static func measure<T>(_ name: StaticString, operation: () throws -> T) rethrows -> T {
+        let interval = signposter.beginInterval(name)
+        defer { signposter.endInterval(name, interval) }
+        return try operation()
+    }
+}

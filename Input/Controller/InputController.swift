@@ -52,6 +52,10 @@ class InputController: IMKInputController, @unchecked Sendable {
     let keyHandler = LatinKeyHandler()
     let typingRules = EnglishTypingRules.shared
     var pendingTransparentPredictionUpdate: Task<Void, Never>?
+    var transparentPredictionGeneration: UInt = 0
+    var waitForTransparentPredictionDebounce: @MainActor () async throws -> Void = {
+        try await Task.sleep(for: .milliseconds(75))
+    }
 
     // MARK: - Init
 

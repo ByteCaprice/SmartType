@@ -45,12 +45,14 @@ extension InputController {
         let characters = event.characters
 
         return MainActor.assumeIsolated {
-            handleKey(
-                keyCode: keyCode,
-                modifierFlags: NSEvent.ModifierFlags(rawValue: modifierFlags),
-                characters: characters,
-                client: client,
-            )
+            PerformanceTrace.measure("Key handling") {
+                handleKey(
+                    keyCode: keyCode,
+                    modifierFlags: NSEvent.ModifierFlags(rawValue: modifierFlags),
+                    characters: characters,
+                    client: client,
+                )
+            }
         }
     }
 

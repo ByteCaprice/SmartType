@@ -24,12 +24,14 @@ import AppKit
         var seen = Set<String>()
 
         // 1. Spell correction — if the prefix is misspelled, offer the fix first
-        let correction = spellChecker.correction(
-            forWordRange: prefixRange,
-            in: prefix,
-            language: Self.language,
-            inSpellDocumentWithTag: tag,
-        )
+        let correction = PerformanceTrace.measure("Spell correction") {
+            spellChecker.correction(
+                forWordRange: prefixRange,
+                in: prefix,
+                language: Self.language,
+                inSpellDocumentWithTag: tag,
+            )
+        }
         if let correction, correction.lowercased() != lowercasedPrefix {
             results.append(correction)
             seen.insert(correction.lowercased())
@@ -37,12 +39,14 @@ import AppKit
 
         // 2. Prefix completions from the system dictionary
         if results.count < limit {
-            let completions = spellChecker.completions(
-                forPartialWordRange: prefixRange,
-                in: prefix,
-                language: Self.language,
-                inSpellDocumentWithTag: tag,
-            )
+            let completions = PerformanceTrace.measure("Spell completions") {
+                spellChecker.completions(
+                    forPartialWordRange: prefixRange,
+                    in: prefix,
+                    language: Self.language,
+                    inSpellDocumentWithTag: tag,
+                )
+            }
             if let completions {
                 addUnique(from: completions, to: &results, seen: &seen, excluding: lowercasedPrefix, limit: limit)
             }
@@ -50,12 +54,14 @@ import AppKit
 
         // 3. Fuzzy guesses — fill remaining slots (handles typos like "helo")
         if results.count < limit {
-            let guesses = spellChecker.guesses(
-                forWordRange: prefixRange,
-                in: prefix,
-                language: Self.language,
-                inSpellDocumentWithTag: tag,
-            )
+            let guesses = PerformanceTrace.measure("Spell guesses") {
+                spellChecker.guesses(
+                    forWordRange: prefixRange,
+                    in: prefix,
+                    language: Self.language,
+                    inSpellDocumentWithTag: tag,
+                )
+            }
             if let guesses {
                 addUnique(from: guesses, to: &results, seen: &seen, excluding: lowercasedPrefix, limit: limit)
             }

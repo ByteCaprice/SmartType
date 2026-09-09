@@ -26,8 +26,8 @@ final class InputControllerEventRoutingTests: XCTestCase {
     private var controller: InputController!
     private var client: RecordingTextInputClient!
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    override func setUp() async throws {
+        try await super.setUp()
         CandidateWindow.shared.hide()
         client = RecordingTextInputClient()
         controller = try XCTUnwrap(
@@ -36,9 +36,9 @@ final class InputControllerEventRoutingTests: XCTestCase {
         )
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         CandidateWindow.shared.hide()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - recognizedEvents must include flagsChanged (the core of the fix)
@@ -419,8 +419,8 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     }
 
     private func stringValue(_ string: Any) -> String {
-        if let s = string as? String { return s }
-        if let a = string as? NSAttributedString { return a.string }
+        if let plainString = string as? String { return plainString }
+        if let attributedString = string as? NSAttributedString { return attributedString.string }
         return String(describing: string)
     }
 

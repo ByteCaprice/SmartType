@@ -8,11 +8,7 @@ import XCTest
 ///   - manager.current reflects changes immediately (cache is rebuilt synchronously)
 ///   - highlightOpacity precision round-trip
 ///   - hexString(for:) returns the default when a key has never been set
-///
-/// DEVELOPER DECISION (marked inline):
-///   `setGridCols(_:)` does not validate its argument before persisting.
-///   An invalid value is stored in UserDefaults and a notification is posted, even though
-///   `gridCols` will discard the stored value and return the default.
+///   - invalid grid-column values are rejected before persistence
 @MainActor final class ThemeManagerExtendedTests: XCTestCase {
     private var defaults: UserDefaults!
     private var manager: ThemeManager!
@@ -89,15 +85,9 @@ import XCTest
         XCTAssertEqual(count, 3)
     }
 
-    /// DEVELOPER DECISION: `setGridCols(_:)` does not validate before persisting.
-    /// An invalid value is stored and a notification fires, even though `gridCols`
-    /// getter discards it and returns the default.
-    /// If the intent is "only persist valid values", add input validation in `setGridCols`.
-    func testSetGridColsWithInvalidValueStillPostsNotification_DEVELOPER_DECISION() {
+    func testSetGridColsWithInvalidValueDoesNotPostNotification() {
         let count = notificationCount { manager.setGridCols(99) }
-        XCTAssertEqual(count, 1,
-                       "DEVELOPER DECISION: invalid setGridCols still posts themeDidChange. " +
-                           "Add pre-validation if this is undesirable.")
+        XCTAssertEqual(count, 0)
     }
 
     // MARK: - current Theme cache rebuilds synchronously
@@ -145,7 +135,7 @@ import XCTest
     // MARK: - gridCols — invalid value behaviour
 
     func testGridColsWithInvalidValueRetainsEffectiveDefault() {
-        // setGridCols writes 99 but the getter validates against gridColsOptions.
+        // setGridCols rejects 99 and preserves the effective default.
         let before = manager.gridCols
         manager.setGridCols(99)
         XCTAssertEqual(manager.gridCols, before,

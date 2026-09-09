@@ -28,6 +28,71 @@ import XCTest
         XCTAssertTrue(CandidateWindow.shared.isVisible)
     }
 
+    // MARK: - Accessibility
+
+    func testVisibleCandidatesExposeOrderedAccessibilityLabels() {
+        CandidateWindow.shared.show(candidates: ["hello", "help"], layout: .vertical, client: nil)
+
+        XCTAssertEqual(CandidateWindow.shared.accessibilityCandidateLabels, ["1, hello", "2, help"])
+    }
+
+    func testNavigationUpdatesAccessibleSelection() {
+        CandidateWindow.shared.show(candidates: ["hello", "help"], layout: .vertical, client: nil)
+        XCTAssertNil(CandidateWindow.shared.accessibilitySelectedCandidateLabel)
+
+        CandidateWindow.shared.moveActiveRowDown()
+
+        XCTAssertEqual(CandidateWindow.shared.accessibilitySelectedCandidateLabel, "1, hello")
+    }
+
+    func testAccessibilityPressSelectsPredictionByIndex() {
+        var selectedIndex: Int?
+        CandidateWindow.shared.show(
+            candidates: ["hello", "help"],
+            layout: .vertical,
+            client: nil,
+            candidateSelectionHandler: { selectedIndex = $0 }
+        )
+
+        XCTAssertTrue(CandidateWindow.shared.performAccessibilityCandidateSelection(at: 1))
+        XCTAssertEqual(selectedIndex, 1)
+    }
+
+    func testAccessibilityPressAccountsForLiteralSlot() {
+        var selectedIndex: Int?
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            literalText: "hel",
+            layout: .vertical,
+            client: nil,
+            candidateSelectionHandler: { selectedIndex = $0 }
+        )
+
+        XCTAssertFalse(CandidateWindow.shared.performAccessibilityCandidateSelection(at: 0))
+        XCTAssertTrue(CandidateWindow.shared.performAccessibilityCandidateSelection(at: 1))
+        XCTAssertEqual(selectedIndex, 0)
+    }
+
+    func testHideRemovesAccessibilityCandidates() {
+        CandidateWindow.shared.show(candidates: ["hello"], layout: .vertical, client: nil)
+        CandidateWindow.shared.hide()
+
+        XCTAssertTrue(CandidateWindow.shared.accessibilityCandidateLabels.isEmpty)
+    }
+
+    // MARK: - Cursor geometry
+
+    func testZeroAndNonFiniteCursorRectsAreRejected() {
+        XCTAssertNil(CandidateWindow.usableCursorRect(.zero))
+        XCTAssertNil(CandidateWindow.usableCursorRect(NSRect(x: CGFloat.infinity, y: 2, width: 1, height: 20)))
+    }
+
+    func testNegativeCursorDimensionsAreStandardized() {
+        let rect = CandidateWindow.usableCursorRect(NSRect(x: 30, y: 40, width: -2, height: -20))
+
+        XCTAssertEqual(rect, NSRect(x: 28, y: 20, width: 2, height: 20))
+    }
+
     // MARK: - hide() resets grid state
 
     func testHideResetsIsLiteralSelected() {

@@ -6,12 +6,6 @@
   <p>Native English completions for macOS. Smart Space. Fully offline.</p>
 </div>
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/c9d41752-d676-4ca5-83da-694390464168"
-       width="600" alt="SmartType candidate window demo"
-       style="border-radius: 18px;">
-</div>
-
 SmartType is a lightweight macOS input method that suggests English word completions and corrections near your cursor. It uses the system spell checker—not a cloud service—and lets you choose when to accept a suggestion.
 
 ## Highlights

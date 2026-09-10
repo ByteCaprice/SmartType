@@ -13,7 +13,7 @@ import os
 /// | `InputControllerLifecycle` | IMK overrides: `activateServer`, `deactivateServer`, `composedString`, … |
 /// | `InputControllerStateManagement` | `resetState`, `cancelPredictions` |
 /// | `InputControllerPredictions` | Fetch and display spelling completions |
-/// | `InputClientPolicy` | Per-app mode: passthrough, inline, or transparent prediction |
+/// | `InputClientPolicy` | Per-app mode: passthrough, direct input, inline, or transparent prediction |
 /// | `InputControllerTransparentPrediction` | Chromium/CEF passthrough prediction without marked text |
 /// | `InputControllerComposition` | `commitCompositionBuffer`, `commitWord`, `selectCandidateByIndex`, marked text |
 /// | `LatinKeyHandler` | English candidate and trailing-space handling |

@@ -1,217 +1,192 @@
 <div align="center">
   <img src="./Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png"
-       width="150"
-       height="150">
+       width="150" height="150" alt="SmartType icon">
 
-  # SwiftType
+  <h1>SmartType</h1>
+  <p>Native English completions for macOS. Smart Space. Fully offline.</p>
 </div>
 
 <div align="center">
-  <img 
-  src="https://github.com/user-attachments/assets/c9d41752-d676-4ca5-83da-694390464168" 
-  width="600" 
-  alt="SwiftType Demo"
-  style="border-radius: 18px;"
-  >
+  <img src="https://github.com/user-attachments/assets/c9d41752-d676-4ca5-83da-694390464168"
+       width="600" alt="SmartType candidate window demo"
+       style="border-radius: 18px;">
 </div>
 
-A lightweight native macOS input method that helps complete and correct English words as you type. It shows a floating candidate bar below your cursor, using the system dictionary locally with no network calls.
+SmartType is a lightweight macOS input method that suggests English word completions and corrections near your cursor. It uses the system spell checker—not a cloud service—and lets you choose when to accept a suggestion.
 
-Built with Swift 6, [InputMethodKit](https://developer.apple.com/documentation/inputmethodkit), and macOS's native `NSSpellChecker`.
+## Highlights
 
----
+- **Smart Space:** keep an exact dictionary match, or accept the visible default completion or correction. Uncertain text falls back to keeping what you typed.
+- **Explicit alternatives:** choose a numbered candidate rather than accepting the default.
+- **Clear indicators:** a spacebar icon marks the default candidate; **✓ Exact match** or **✓ Keep typed** explains literal preservation.
+- **Native candidate window:** choose a vertical list or expandable grid, with customizable colors, opacity, and dimensions.
+- **Local processing:** predictions use macOS `NSSpellChecker`. No network predictions or typed-text telemetry.
+- **Per-app compatibility:** separate input modes for native editors, browsers, terminals, and clients that need a compatibility commit.
 
-## ✨ Features
+Built with Swift 6, AppKit, and [InputMethodKit](https://developer.apple.com/documentation/inputmethodkit). Requires **macOS 13 or later**; building from source requires Xcode.
 
-- **Up to five word completions and corrections** as you type, powered by macOS's built-in spell checker
-- **Smart Space** — preserves complete words and accepts the displayed default for incomplete prefixes or clear corrections
-- **Fully offline** — suggestions use the system dictionary and no data leaves your machine
-- **Expandable candidate grid** — starts as a single row and expands when more candidates are available
-- **Themeable candidate window** — customize colors, opacity, grid size, and border through the Settings UI
-- **Menu bar integration** — shows `EN` and provides quick access to Settings
-
----
-
-## 🖥️ Requirements
-
-macOS 13.0 or later. Xcode required only if building from source.
-
----
-
-## 📦 Install
-
-### From PKG (recommended)
-
-Download the latest `.pkg` from [Releases](../../releases) and double-click to install. The app is ad-hoc signed and not notarized, so you'll need to **right-click → Open** the installer on first launch to bypass Gatekeeper.
+## Install
 
 ### Build from source
+
+From the repository directory:
 
 ```bash
 ./scripts/install.sh
 ```
 
-The script completes an optimized Release build before replacing the copy in `~/Library/Input Methods/`. Regular builds and tests never modify the installed input method. Use `CONFIGURATION=Debug ./scripts/install.sh` only when debugging the installed process.
+The script builds Release, validates its signature, and transactionally replaces the installed app in `~/Library/Input Methods/`. Failed replacement validation restores the previous installation.
+
+### Install a packaged release
+
+Check [Releases](../../releases) for a `.pkg`. The current packaging script produces an ad-hoc-signed app, not a notarized distribution. Only install packages from a source you trust; if macOS blocks installation, review the warning in **System Settings → Privacy & Security** rather than disabling Gatekeeper globally.
 
 ### Enable the input source
 
-1. Open **System Settings → Keyboard → Input Sources → Edit → +**
-2. Select **SwiftType**
-3. Click **Add**
-4. Switch to SwiftType from the input source menu in the menu bar
+1. Open **System Settings → Keyboard → Text Input → Edit → +** (labels vary by macOS version).
+2. Add the input source installed by the script. The system-facing label is documented in the [installation guide](./HANDOFF.md#3-installed-application-and-local-environment) and may differ from the repository name.
+3. Select that source from the input menu and start typing in a supported text field.
 
----
+After an update, fully quit and reopen affected apps so they reconnect. A restart is not normally needed. If the input source is missing or sessions will not reconnect, log out and back in after saving your work.
 
-## 🚀 Usage
+## Typing with Smart Space
 
-Switch to SwiftType, open any text field, and start typing. The candidate bar appears below your cursor.
+A visible candidate list starts with **no explicit selection**. Space and Return intentionally behave differently:
 
-### Candidate selection
-
-SwiftType defaults to **Vertical List**. A visible list does not initially mean that a suggestion is explicitly selected. Smart Space preserves a recognized complete word, or accepts the candidate marked with the spacebar icon for an incomplete prefix or correction. A compact `✓ Exact match` indicator beneath the candidates means the completed word will be kept. Other conservative literal fallbacks use `✓ Keep typed`.
-
-| Key | Vertical List action |
+| Indicator or action | Meaning |
 |---|---|
-| `1`–`7` | Commit the correspondingly numbered visible candidate |
-| `↓` / `Tab` / `→` | Activate the first candidate, then move down |
-| `↑` / `←` | Move up |
-| `Space` | Commit an explicit selection; otherwise use the displayed Smart Space target, with one trailing space |
-| `Return` | Commit an explicit selection; otherwise preserve the original letters without adding a space |
+| Spacebar icon beside a candidate | Space accepts that fresh, visible default unless you explicitly selected another candidate |
+| **✓ Exact match** | Space keeps the typed word because exact completion evidence exists |
+| **✓ Keep typed** | Space keeps the typed text conservatively |
+| Explicit candidate selection | Your selection takes priority over the Smart Space default |
+| Return without a selection | Preserves your original letters instead of automatically completing them |
+
+Space adds a trailing space when committing a word. Predictions depend on the local macOS dictionary and learned-word state; they are not guaranteed to match another Mac. Prefix completions rank ahead of corrections, and fuzzy guesses remain explicit choices rather than automatic replacements.
+
+### Candidate controls in inline mode
+
+The default layout is **Vertical List**:
+
+| Key | Action while candidates are visible |
+|---|---|
+| `1`–`7` | Accept the correspondingly numbered populated candidate slot |
+| `↓`, `Tab`, `→` | Activate the first candidate, then move down |
+| `↑`, `←` | Move up |
+| `Space` | Accept the explicit selection or Smart Space default, with a trailing space |
+| `Return` | Commit the selection or original letters without a space; this Return is consumed |
 | `Escape` | Preserve literal text and dismiss candidates |
 
-### Grid layout
+With the panel hidden, Return commits any pending inline text and passes through to the app. Shifted digits remain ordinary typing, not candidate shortcuts.
 
-Choose **Grid** in Settings to use a collapsed first row and expandable multi-row candidate bar.
+For **Grid** layout, `↓` activates/expands/moves down, `↑` moves up or collapses at the top, and `Tab`/`→`/`←` move between columns. Number shortcuts refer to the active row.
 
-| Key | Grid action |
+## Application compatibility
+
+Text fields do not all implement macOS input methods the same way—even an editor and terminal in one app can behave differently. SmartType uses the actual input client's bundle identifier to choose a mode:
+
+| Mode | Examples | Behavior |
+|---|---|---|
+| **Inline** | TextEdit, Safari, Xcode, Edge; default for other clients | Marked-text composition with candidates and navigation |
+| **Transparent prediction** | Chrome, Brave, Vivaldi, Opera, WeCom/企业微信, DingTalk/钉钉 | Immediate text commits, with a local mirror for predictions |
+| **Direct input** | VS Code | Compatibility commits for printable text; no candidate list |
+| **Passthrough** | Terminal, iTerm2, Ghostty, other configured terminal families | Keys remain host-owned; no predictions |
+
+In transparent mode, Space and number shortcuts can accept candidates. Arrows and Tab dismiss candidates and belong to the app. Return without an explicit selection remains the app's submit/newline key. Corrections replace existing text only when the target can be verified; unsafe replacements fall back to literal typing.
+
+WeCom, DingTalk, and VS Code use a temporary `setMarkedText` → `insertText` handshake instead of leaving a persistent composition. This addresses observed dropped-input failures, but does not establish universal compatibility with every host or future update.
+
+VS Code's editor and integrated terminal share the direct-input policy. Command, Control, Option, Backspace, Return, Escape, arrows, and Tab remain host-owned. Option-generated characters, dead keys, and raw-mode terminal programs still deserve real-client testing.
+
+Caps Lock / 中英 switching remains owned by macOS. The input method currently requests the **US keyboard layout** while active; other keyboard layouts are not yet validated.
+
+### Recovering a newly incompatible app
+
+First reopen the app and verify the selected input source. If a routing change is needed, targeted preferences allow recovery without rebuilding:
+
+- **Transparent prediction with compatibility commits** keeps suggestions.
+- **Direct input** omits candidates for mixed editor/terminal clients.
+- **Marked-text priming only** adds the compatibility handshake to an already-transparent client.
+
+Use the commands and technical preference identifiers in the [per-app configuration guide](./HANDOFF.md#5-current-client-routing). Choose the appropriate option, not all three, and use the actual IMK client bundle ID.
+
+Finish any composition and quit the affected app **before** changing these preferences, then reopen it. Matching is exact or a dotted helper descendant. A custom direct-input entry overrides terminal passthrough; Edge remains inline and the input method's own UI remains passthrough. These are targeted recovery options, not guaranteed fixes.
+
+## Settings
+
+Open **Settings** from the `EN` menu-bar item. Appearance controls include layout, colors, opacity, grid columns (4–6), and rows (3–5), with a preview and reset controls. About shows version information.
+
+Prefer the Settings reset controls for appearance changes. Deleting the whole preference domain also removes per-app recovery settings.
+
+## Troubleshooting
+
+| Symptom | First steps |
 |---|---|
-| `↓` | Activate the first candidate / expand grid / move down |
-| `↑` | Move up / collapse at the top |
-| `Tab` / `→` | Move right |
-| `←` | Move left |
-| `1`–`7` | Commit a numbered candidate from the active row |
-
-### Browser and passthrough differences
-
-Chrome, Brave, Vivaldi, Opera, and WeCom use transparent prediction so Caps Lock language switching remains reliable. Smart Space and number shortcuts still accept visible candidates, but arrows and Tab belong to the browser and dismiss SwiftType's candidates instead of navigating them. Return preserves the typed letters and remains the browser's normal submit/newline key. Terminal and VS Code use passthrough mode and intentionally show no suggestions.
-
----
-
-## ⚙️ Settings
-
-Open Settings from the menu bar icon.
-
-| Pane | What it does |
-|---|---|
-| **Appearance** | Adjust candidate bar colors, opacity, column count (4–6), and row count (3–5) |
-| **About** | Shows the installed version |
-
-Reset all settings: `defaults delete com.matthew.inputmethod.SwiftType`
-
----
-
-## 🏗️ How It Works
-
-### Prediction pipeline
-
-```
-Keystroke
- → SpellCheckPredictor (macOS spell checker → exact evidence + prefix completions + corrections)
- → Smart Space policy (literal or visible default candidate)
- → CandidateWindow (floating grid below cursor)
-```
-
-**SpellCheckPredictor** wraps `NSSpellChecker` to retain exact-word evidence, rank strict prefix completions ahead of corrections, and keep fuzzy guesses as explicit choices. Exact ranking remains dependent on the local macOS dictionary and learned-word state; all processing is synchronous and offline.
-
-Smart Space is intentionally completion-oriented. Ambiguous misspellings that are also prefixes can favor a dictionary completion—for example, a local dictionary may rank `helots` for `helo` or `imagine` for `im`. Return preserves the original letters when no candidate was explicitly selected.
-
-### Architecture
-
-```
-macOS → IMKServer → InputController
-                        ├── InputClientPolicy    — per-app mode: passthrough / inline / transparent prediction
-                        ├── LatinKeyHandler      — English key dispatch (inline mode)
-                        ├── InputControllerTransparentPrediction — mirrored-buffer predictions for Chromium/CEF apps
-                        ├── SpellCheckPredictor — local completions and corrections
-                        ├── EnglishTypingRules — punctuation and capitalization
-                        └── CandidateWindow   — floating grid UI
-```
-
-### Per-app compatibility
-
-SwiftType handles three kinds of text clients, selected automatically by `InputClientPolicy`:
-
-- **Inline** (default): marked-text preedit with candidates — native apps like TextEdit, Safari, Xcode, Electron/Qt apps, plus the Microsoft Edge family and its installed web apps, whose text fields drop modeless input.
-- **Passthrough**: every keystroke goes to the app untouched — terminals and VS Code, whose line editors fight inline preedit.
-- **Transparent prediction**: Other Chromium/CEF apps (Chrome, Brave, Vivaldi, Opera, WeCom/企业微信) defer Caps Lock input-source switching while marked text is active, so SwiftType keeps no composition there — letters land in the app directly and only the completion suffix is inserted when you pick a candidate.
-
-If a newly released app shows the same broken Caps Lock switching, enable transparent prediction for it without rebuilding:
-
-```bash
-defaults write com.matthew.inputmethod.SwiftType transparentPredictionBundleIdentifiers -array-add 'com.example.NewApp'
-```
-
-Caps Lock (中/英) switching to other input methods is supported system-wide via the input method's `TICapsLockLanguageSwitchCapable` capability.
-
-SwiftType currently asks InputMethodKit for the US keyboard layout while active. This preserves the physical key-code shortcuts used by the candidate interface. Dvorak, AZERTY, and other physical layouts require explicit compatibility testing before this becomes configurable.
-
-### Concurrency
-
-Application state is `@MainActor`-isolated under **Swift 6 strict concurrency**. InputMethodKit delivers callbacks on the main thread; the controller verifies that boundary before accessing composition state. Chromium candidate refreshes are asynchronously coalesced on the main actor so key handling can return to the browser before spell-checking and UI work begin.
-
----
-
-## 🧪 Tests
-
-```bash
-xcodebuild -scheme SwiftType -configuration Debug test
-```
-
-The test suite covers input state, per-app client modes, transparent prediction, grid navigation, key routing, spell-check predictions, privacy-sensitive logging, the theme system, settings persistence, and candidate window behavior.
-
-After installing a changed build, run the manual matrix in [`REAL_CLIENT_ACCEPTANCE.md`](./REAL_CLIENT_ACCEPTANCE.md). It also documents VoiceOver checks and privacy-preserving Instruments signpost measurements.
-
-For a privacy-safe, read-only installation and registration summary, run:
+| No text after an update | Confirm the installed input source is selected; fully quit and reopen the affected app |
+| Input source missing | Add the installed input source in Keyboard settings; log out/in if registration has not refreshed |
+| One app fails, others work | Record the app version and field type; editor and integrated terminal results can differ |
+| Missing or duplicated characters | Note the keys and app involved; avoid speculative insertion retries or global routing changes |
+| Unexpected candidate acceptance | Check the spacebar indicator; Return preserves literal text when nothing is explicitly selected |
+| Suspected old or duplicate installation | Run the diagnostic below before removing anything or resetting services |
 
 ```bash
 ./scripts/diagnose.sh
 ```
 
-The diagnostic does not restart services, modify input sources, unregister bundles, or collect typed/document text.
+This read-only diagnostic reports installation, signature, architecture, process, and compatibility preferences. It does not restart services, change input sources, unregister bundles, or collect typed/document text. Review paths before sharing its output.
 
----
+## Development and verification
 
-## 📁 Project Structure
+### Run tests
 
-```
-SwiftType/
-├── App/            App delegate, constants, logging, and menu bar
-├── Input/          Input controller, English key handling, and state
-├── Prediction/     Native spell-check and completion provider
-├── Rules/          English punctuation and capitalization rules
-├── UI/             Candidate window, appearance settings, and theme system
-├── Tests/          Unit tests across all subsystems
-└── scripts/        Release packaging
-```
-
----
-
-## 📋 Building a Release
+Run the shared Xcode test scheme with temporary DerivedData, following the exact project and scheme names in the [build guide](./HANDOFF.md#11-build-and-verification-workflow). Run the isolated shell checks from the repository root:
 
 ```bash
-./scripts/release/release.sh          # auto-versioned (UTC timestamp)
-./scripts/release/release.sh 1.2.0    # explicit version
+bash scripts/release/tests/test_diagnose.sh
+bash scripts/release/tests/test_pkg_install.sh
 ```
 
-Produces `dist/SwiftType-<version>.pkg` — a flat installer that copies the app to `~/Library/Input Methods/` and creates a `/Applications/SwiftType.app` symlink.
+Builds and tests do not replace the installed input method, although Xcode can register generated bundles with LaunchServices.
 
----
+The **2026-09-09 reliability audit** verified **596 unit tests passing**, **10 installer safety tests passing**, diagnostic checks, and a universal Intel/Apple Silicon Release build. Coverage includes Smart Space, candidate freshness, compatibility commits, stale-state Caps Lock handling, input routing, settings, and privacy-sensitive logging. These are dated verification results, not a guarantee of bug-free typing in every application.
 
-## 🔧 Troubleshooting
+Users reported successful typing after the compatibility update. The complete per-client matrix, VoiceOver, multi-display positioning, sleep/wake, and latency measurements remain separate acceptance work. See [Real-client acceptance](./REAL_CLIENT_ACCEPTANCE.md).
 
-| Problem | Fix |
+### Architecture
+
+```text
+macOS → IMKServer → InputController
+                    ├── InputClientPolicy — per-client routing
+                    ├── LatinKeyHandler — inline English input
+                    ├── InputControllerTransparentPrediction — mirrored text
+                    ├── SpellCheckPredictor — local dictionary evidence
+                    ├── SmartSpacePolicy — literal or candidate default
+                    └── CandidateWindow — presentation and selection
+```
+
+Application state is main-actor isolated. Transparent prediction refreshes are debounced and revalidated before display; spell-checking remains local and runs on the main actor.
+
+| Directory | Purpose |
 |---|---|
-| SwiftType not in Input Sources | Run `./scripts/install.sh`, add SwiftType in **System Settings → Keyboard**, then log out and back in |
-| An app cannot type after installing or rebuilding SwiftType | Fully quit and reopen that app so it reconnects to the new input-method process; if that fails, log out and back in |
-| Old binary after rebuild | Run `./scripts/install.sh`, quit and reopen apps that were running during installation, then log out and back in if needed |
-| Duplicate entries | `sudo rm -rf /Library/Input\ Methods/SwiftType.app` then re-login |
-| Gatekeeper error | Right-click → Open, or run `xattr -dr com.apple.quarantine ~/Library/Input\ Methods/SwiftType.app` |
+| `App/` | Startup, menu bar, constants, logging |
+| `Input/` | Client routing, key handling, composition, state |
+| `Prediction/` | Spell-check evidence and Smart Space policy |
+| `Rules/` | English punctuation and capitalization |
+| `UI/` | Candidate window, settings, themes |
+| `Tests/` | Automated regression coverage |
+| `scripts/` | Installation, diagnostics, release packaging |
+
+### Package a release
+
+```bash
+./scripts/release/release.sh        # timestamp-based version
+./scripts/release/release.sh 1.2.0  # explicit version
+```
+
+The package is written to `dist/`. It installs the input method in `~/Library/Input Methods/` and creates an application symlink in `/Applications/`. Packaging and system identifiers remain as defined in the existing build scripts.
+
+### Further reading
+
+- [Smart Space implementation guide](./SMART_SPACE_IMPLEMENTATION_GUIDE.md)
+- [Input-method switching and compatibility](./INPUT_METHOD_SWITCHING.md)
+- [Real-client acceptance checklist](./REAL_CLIENT_ACCEPTANCE.md)
+- [Developer handoff and verification history](./HANDOFF.md)

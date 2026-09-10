@@ -65,11 +65,16 @@ fi
 printf '\nClient routing\n'
 printf '%s\n' '--------------'
 printf '%-28s %s\n' 'Inline:' 'TextEdit, Spotlight, Safari, Edge, native/default clients'
-printf '%-28s %s\n' 'Transparent prediction:' 'Chrome/Chromium/CEF and WeCom families'
-printf '%-28s %s\n' 'Passthrough:' 'Terminal and VS Code families'
+printf '%-28s %s\n' 'Transparent prediction:' 'Chrome/Chromium plus WeCom and DingTalk compatibility commits'
+printf '%-28s %s\n' 'Direct input:' 'VS Code printable text; commands remain app-owned'
+printf '%-28s %s\n' 'Passthrough:' 'Native terminal families'
 
 custom_clients=$(/usr/bin/defaults read "${BUNDLE_ID}" transparentPredictionBundleIdentifiers 2>/dev/null || true)
+custom_direct_clients=$(/usr/bin/defaults read "${BUNDLE_ID}" directInputBundleIdentifiers 2>/dev/null || true)
+custom_priming_clients=$(/usr/bin/defaults read "${BUNDLE_ID}" markedTextPrimingBundleIdentifiers 2>/dev/null || true)
 printf '%-28s %s\n' 'Custom transparent clients:' "${custom_clients:-none}"
+printf '%-28s %s\n' 'Custom direct-input clients:' "${custom_direct_clients:-none}"
+printf '%-28s %s\n' 'Custom priming clients:' "${custom_priming_clients:-none}"
 
 printf '\nDiscoverable bundles with the same identifier\n'
 printf '%s\n' '---------------------------------------------'

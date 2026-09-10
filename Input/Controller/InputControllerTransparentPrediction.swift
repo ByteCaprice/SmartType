@@ -5,7 +5,8 @@ import InputMethodKit
 /// Chromium/CEF clients ignore IMK `handle()` return values unless marked text is
 /// active or a multi-character `insertText` happens in the same keyDown. Keeping
 /// marked text blocks Caps Lock language switching, so these apps get a mirrored
-/// prediction buffer: each printable key is inserted without marked text, while
+/// prediction buffer: each printable key is committed immediately, using a
+/// synchronous temporary marked phase only for clients that require it, while
 /// completion suffixes are inserted when the user selects a candidate.
 extension InputController {
     func handleTransparentPredictionKey(
@@ -116,7 +117,7 @@ extension InputController {
         }
 
         discardMirroredComposition()
-        client.insertText(" ", replacementRange: Constants.replacementNotFound)
+        insertTextForCompatibility(" ", client: client)
         if hadComposition {
             recordAutoInsertedTrailingSpace(client: client, expectedCursor: expectedSpaceCursor)
         } else {
@@ -170,14 +171,14 @@ extension InputController {
 
         if char.isLetter {
             appendMirroredCharacter(char, client: client)
-            client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+            insertTextForCompatibility(String(char), client: client)
             scheduleTransparentPredictionUpdate(client: client)
             return true
         }
 
         if typingRules.compositionContinuationMarks.contains(char), !state.compositionBuffer.isEmpty {
             appendMirroredCharacter(char, client: client)
-            client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+            insertTextForCompatibility(String(char), client: client)
             scheduleTransparentPredictionUpdate(client: client)
             return true
         }
@@ -188,7 +189,7 @@ extension InputController {
 
         discardMirroredComposition()
         guard char.isNumber || char.isPunctuation || char.isSymbol else { return false }
-        client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+        insertTextForCompatibility(String(char), client: client)
         return true
     }
 
@@ -263,11 +264,16 @@ extension InputController {
     ) -> Bool {
         guard let replacementRange = autoInsertedSpaceRange(client: client) else {
             clearAutoInsertedTrailingSpace()
-            client.insertText(String(char), replacementRange: Constants.replacementNotFound)
+            insertTextForCompatibility(String(char), client: client)
             return true
         }
 
-        primeAndCommit(String(char), replacing: replacementRange, client: client)
+        insertTextForCompatibility(
+            String(char),
+            replacing: replacementRange,
+            forceMarkedText: true,
+            client: client
+        )
         clearAutoInsertedTrailingSpace()
         return true
     }
@@ -283,10 +289,15 @@ extension InputController {
         var expectedCursor: Int?
 
         if let suffix, (suffix as NSString).length > 1 {
-            client.insertText(suffix, replacementRange: Constants.replacementNotFound)
+            insertTextForCompatibility(suffix, client: client)
             expectedCursor = state.expectedCursor.map { $0 + (suffix as NSString).length }
         } else if let typedRegion = verifiedTypedRegion(client: client, buffer: buffer) {
-            primeAndCommit(committed, replacing: typedRegion, client: client)
+            insertTextForCompatibility(
+                committed,
+                replacing: typedRegion,
+                forceMarkedText: true,
+                client: client
+            )
             expectedCursor = typedRegion.location + (committed as NSString).length
         } else {
             discardMirroredComposition()
@@ -319,20 +330,6 @@ extension InputController {
             return nil
         }
         return range
-    }
-
-    private func primeAndCommit(
-        _ text: String,
-        replacing range: NSRange,
-        client: any IMKTextInput,
-    ) {
-        let attrString = NSAttributedString(string: text, attributes: Self.markedTextAttributes)
-        client.setMarkedText(
-            attrString,
-            selectionRange: NSRange(location: (text as NSString).length, length: 0),
-            replacementRange: range,
-        )
-        client.insertText(text, replacementRange: Constants.replacementNotFound)
     }
 
     private static func transparentSuffix(

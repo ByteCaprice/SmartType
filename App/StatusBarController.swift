@@ -51,7 +51,7 @@ import AppKit
         alert.informativeText = "Enable SwiftType in System Settings → Keyboard → Text Input, then select it from the input menu.\n\n"
             + "Vertical List: press the number shown beside a candidate to choose it. Arrow keys activate and move the selection. Space accepts the item marked with the spacebar icon; ✓ Exact match keeps a completed word; ✓ Keep typed marks other literal fallbacks.\n\n"
             + "Grid: ↓ expands the grid, arrows or Tab move the selection, and number keys choose from the active row. Return keeps the original letters unless you explicitly selected a candidate.\n\n"
-            + "Chrome and similar browsers show Smart Space predictions without capturing arrow keys. Return remains the browser's normal submit or newline key. Terminal and VS Code use passthrough mode. "
+            + "Chrome and compatible CEF apps show Smart Space predictions without capturing arrow keys. Return remains the app's normal submit or newline key. Native terminals use passthrough; VS Code uses direct compatibility input without suggestions. "
             + "If applications cannot connect after an update, log out and back in."
         alert.addButton(withTitle: "OK")
         alert.runModal()

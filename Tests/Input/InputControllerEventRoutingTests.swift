@@ -22,6 +22,7 @@ import XCTest
 /// The switch-away safety net is `deactivateServer`, which commits any open
 /// composition when macOS ends the session.
 @MainActor
+// swiftlint:disable:next type_body_length
 final class InputControllerEventRoutingTests: XCTestCase {
     private var controller: InputController!
     private var client: RecordingTextInputClient!
@@ -460,9 +461,97 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertTrue(client.markedText.isEmpty)
     }
 
-    func testVSCodeDefaultsToPassthroughButXcodeDoesNot() {
-        XCTAssertTrue(InputController.terminalBundleIdentifiers.contains("com.microsoft.VSCode"))
-        XCTAssertFalse(InputController.terminalBundleIdentifiers.contains("com.apple.dt.Xcode"))
+    func testVSCodePrintableTextUsesPrimedDirectInputWithoutComposition() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "a", keyCode: 0),
+            client: client
+        ))
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue),
+            client: client
+        ))
+
+        XCTAssertEqual(client.markedText, ["a", " "])
+        XCTAssertEqual(client.insertedText, ["a", " "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+
+        controller.deactivateServer(client)
+        XCTAssertEqual(client.markedText, ["a", " "])
+        XCTAssertEqual(client.insertedText, ["a", " "])
+    }
+
+    func testVSCodeCommandsStayUnmodifiedForIntegratedTerminal() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        XCTAssertFalse(controller.handle(
+            try Self.keyDownEvent(characters: "\u{8}", keyCode: KeyCode.backspace.rawValue),
+            client: client
+        ))
+        XCTAssertFalse(controller.handle(
+            try Self.keyDownEvent(characters: "c", keyCode: 8, modifiers: .control),
+            client: client
+        ))
+        XCTAssertFalse(controller.handle(
+            try Self.keyDownEvent(characters: "\r", keyCode: KeyCode.returnKey.rawValue),
+            client: client
+        ))
+
+        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testVSCodeShiftUppercaseDigitAndPunctuationArePrimedOnce() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "A", keyCode: 0, modifiers: .shift),
+            client: client
+        ))
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "5", keyCode: KeyCode.key5.rawValue),
+            client: client
+        ))
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: ".", keyCode: 47),
+            client: client
+        ))
+
+        // Shift is not a command modifier; the uppercase letter, digit, and
+        // punctuation must each be committed exactly once through the primed path.
+        XCTAssertEqual(client.markedText, ["A", "5", "."])
+        XCTAssertEqual(client.insertedText, ["A", "5", "."])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testVSCodeNavigationAndEscapeKeysStayHostOwned() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        let hostKeys: [(String, UInt16)] = [
+            ("\u{1B}", KeyCode.escape.rawValue),
+            ("\t", KeyCode.tab.rawValue),
+            ("\u{F702}", KeyCode.leftArrow.rawValue),
+            ("\u{F703}", KeyCode.rightArrow.rawValue),
+            ("\u{F701}", KeyCode.downArrow.rawValue),
+            ("\u{F700}", KeyCode.upArrow.rawValue),
+        ]
+
+        for (characters, keyCode) in hostKeys {
+            XCTAssertFalse(
+                controller.handle(
+                    try Self.keyDownEvent(characters: characters, keyCode: keyCode),
+                    client: client
+                ),
+                "key \(keyCode) must stay host-owned in direct input mode"
+            )
+        }
+
+        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
     func testTypingAndBackspaceKeepSmartSpaceSnapshotInSync() throws {

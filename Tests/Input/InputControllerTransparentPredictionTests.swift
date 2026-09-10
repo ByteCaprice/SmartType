@@ -40,6 +40,7 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
             )
         )
         XCTAssertTrue(InputController.usesTransparentPrediction(bundleIdentifier: "com.tencent.WeWorkMac"))
+        XCTAssertTrue(InputController.usesTransparentPrediction(bundleIdentifier: "com.alibaba.DingTalkMac"))
         XCTAssertTrue(
             InputController.usesTransparentPrediction(
                 bundleIdentifier: "88L2Q4487U.com.tencent.wework.helper.renderer"
@@ -185,16 +186,74 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
-    func testWeComLettersStayMirroredWithoutMarkedText() throws {
+    func testWeComLettersUseTemporaryMarkedTextPriming() throws {
         client.bundleIdentifierValue = "com.tencent.WeWorkMac"
         try type("h", keyCode: 4)
         try type("e", keyCode: 14)
 
         XCTAssertEqual(controller.state.compositionBuffer, "he")
-        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertEqual(client.markedText, ["h", "e"])
         XCTAssertEqual(client.insertedText, ["h", "e"])
         XCTAssertEqual(client.document, "he")
         XCTAssertEqual(controller.state.expectedCursor, 2)
+    }
+
+    func testWeComPrimedSuffixCommitLandsExactlyOnce() throws {
+        client.bundleIdentifierValue = "com.tencent.WeWorkMac"
+        try type("h", keyCode: 4)
+        try type("e", keyCode: 14)
+        try type("l", keyCode: 37)
+        controller.state.currentPredictions = ["hello"]
+        showCandidates(["hello"])
+
+        let handled = try type("1", keyCode: KeyCode.key1.rawValue)
+
+        XCTAssertTrue(handled)
+        // The typed prefix already lives in the document; only the "lo " suffix is
+        // committed, through the primed mark-then-insert path, exactly once.
+        XCTAssertEqual(client.document, "hello ")
+        XCTAssertEqual(client.insertedText, ["h", "e", "l", "lo "])
+        XCTAssertEqual(client.markedText, ["h", "e", "l", "lo "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+    }
+
+    func testWeComPrimedCorrectionReplacesTypedRegionExactlyOnce() throws {
+        client.bundleIdentifierValue = "com.tencent.WeWorkMac"
+        try type("t", keyCode: 17)
+        try type("e", keyCode: 14)
+        try type("h", keyCode: 4)
+        setPredictionSnapshot(
+            buffer: "teh",
+            predictions: ["the"],
+            action: .prediction(index: 0),
+            reason: .correction
+        )
+
+        let handled = try type(" ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(handled)
+        // The verified typed region is replaced by "the " — primed, so the letters
+        // are marked first, and the document ends with a single corrected word.
+        XCTAssertEqual(client.document, "the ")
+        XCTAssertEqual(client.insertedText, ["t", "e", "h", "the "])
+        XCTAssertEqual(client.markedText, ["t", "e", "h", "the "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testDingTalkUsesPrimingForLettersPunctuationAndSpace() throws {
+        client.bundleIdentifierValue = "com.alibaba.DingTalkMac"
+
+        XCTAssertTrue(try type("h", keyCode: 4))
+        XCTAssertTrue(try type(".", keyCode: 47))
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+
+        XCTAssertEqual(client.markedText, ["h", ".", " "])
+        XCTAssertEqual(client.insertedText, ["h", ".", " "])
+        XCTAssertEqual(client.document, "h. ")
+        XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
     func testBackspaceShrinksMirrorAndLeavesDeletionToClient() throws {

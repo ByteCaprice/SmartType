@@ -2,7 +2,7 @@
 
 Research date: 2026-09-09. Audience: the next implementation agent, including GPT-5.6-sol.
 
-**Status: implemented on the `smart-space` branch and installed for user evaluation on 2026-09-09 as reason-aware indicator build `20260909081738`; automated verification is recorded below. Real-client validation remains pending.**
+**Status: implemented on the `smart-space` branch and installed for user evaluation on 2026-09-09 as client-compatibility build `20260909100351`; automated verification is recorded below. Real-client validation remains pending.**
 
 ## 1. Product requirement
 
@@ -27,7 +27,7 @@ Preserve:
 - Explicit arrow/Tab selection: Space accepts the explicitly selected candidate, not always candidate 1.
 - Number shortcuts, capitalization rules, and punctuation removal of an automatic trailing space.
 - Existing Return and Caps Lock / 中英 behavior; see the important Return nuance in section 7.
-- Native/Edge inline, Chrome/WeCom transparent prediction, Terminal/VS Code passthrough.
+- Native/Edge inline, Chrome transparent prediction, WeCom/DingTalk transparent compatibility commits, native Terminal passthrough, and VS Code no-prediction direct input.
 - Local processing, existing UI style, nonactivating candidate panel, and no typed-text telemetry.
 
 **Do not implement this by merely selecting/highlighting row 1 on every candidate refresh.** That would alter Return and navigation semantics and would still turn complete words into unwanted longer words.
@@ -227,6 +227,7 @@ Conceptually:
 
 ```text
 passthrough mode -> leave event untouched
+direct-input mode -> commit printable text synchronously; leave commands untouched
 modifier shortcut -> preserve existing shortcut behavior
 nonempty composition + fresh visible candidate presentation:
     explicit candidate selection -> use it
@@ -360,7 +361,7 @@ Keep a small repeatable fixed-word probe (section 12) and record the actual mach
 7. Measure additional prediction-update work with existing privacy-safe signposts. Do not benchmark by logging real words or saving typed-word caches.
 8. Obtain independent Tester review. Use fixed fixtures for policy and actual host tests for integration.
 9. **Install only on explicit user approval for the implementation build.** This research request is not installation authorization.
-10. Real-client matrix: TextEdit, Spotlight, Safari, Edge, Chrome, WeCom; verify Terminal/VS Code remain passthrough. Test exact examples, quick Space, Return in a chat/search field, punctuation, switching during composition, and focus changes.
+10. Real-client matrix: TextEdit, Spotlight, Safari, Edge, Chrome, WeCom, DingTalk, Terminal, and both VS Code's Monaco editor and integrated terminal. Verify temporary compatibility commits insert exactly once, VS Code shows no candidates, and host-owned commands still pass through. Test exact examples, quick Space, Return in a chat/search field, punctuation, switching during composition, and focus changes.
 
 Use temporary build/test paths rather than arbitrary DerivedData cleanup. Xcode previously emitted registration commands even with `REGISTER_WITH_LAUNCH_SERVICES=NO`; disclose this limitation, do not automatically unregister input sources or restart shared IMK services. If a newly installed build fails to connect, inspect registration/session state and try user-controlled logout/login before changing switching code.
 
@@ -420,9 +421,9 @@ Implemented behavior:
 Automated verification on 2026-09-09:
 
 - Focused Smart Space/policy/controller/transparent/UI tests passed.
-- Full XCTest suite passed: **575 tests, 0 failures, 0 skips** on macOS 26.6.2.
+- Full XCTest suite passed after client-compatibility coverage: **585 tests, 0 failures, 0 skips** on macOS 26.6.2.
 - Unsigned Release validation produced a universal `x86_64 arm64` executable and a valid `Info.plist` in temporary DerivedData.
-- After implementation verification, the user explicitly authorized installation. Transactional installation of reason-aware indicator build `20260909081738` succeeded; signature and universal architecture were verified. Real-client validation remains pending.
+- After implementation verification, the user explicitly authorized installation. Transactional installation of client-compatibility build `20260909100351` succeeded; signature and universal architecture were verified. Real-client validation remains pending.
 
 ## 14. Instructions to future implementation agents
 

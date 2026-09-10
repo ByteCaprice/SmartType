@@ -32,9 +32,16 @@ Apple's candidate order can vary by OS, dictionary, learned words, and account. 
 | Safari | Inline | Marked composition and candidates |
 | Microsoft Edge | Inline | No dropped letters; Edge web apps follow the same policy |
 | Chrome | Transparent prediction | Letters appear immediately without marked text; number keys select candidates |
-| WeCom | Transparent prediction | Same behavior as Chrome |
+| WeCom | Transparent prediction + compatibility commit | Letters appear once; Smart Space works; no persistent marked text |
+| DingTalk | Transparent prediction + compatibility commit | Same behavior as WeCom |
 | Terminal | Passthrough | SwiftType does not intercept typing or show candidates |
-| VS Code | Passthrough | SwiftType does not interfere with editor/terminal key handling |
+| VS Code editor | Direct input compatibility | Printable text appears once; no candidate popup; editor commands remain host-owned |
+| VS Code integrated terminal | Direct input compatibility | Printable text and Space appear once; Ctrl/Cmd/Option, Backspace, arrows, Tab, Escape, and Return remain terminal-owned |
+| ChatGPT (`com.openai.codex`) | Inline default, unverified Electron client | Composer accepts text; composition and Caps Lock switching work |
+| Claude Desktop | Inline default, unverified Electron client | Composer accepts text; composition and Caps Lock switching work |
+| Cherry Studio / OpenCode / OpenChamber | Inline default, unverified Electron clients | Editor/chat fields accept text without drops or duplication |
+| NeteaseMusic | Inline default, unverified CEF client | Search fields accept text and switch sources normally |
+| Termius | Passthrough | Terminal and non-terminal fields both accept text; shortcuts remain unchanged |
 | Word | Inline default | Composition, replacement, and switching work |
 | System Settings | Inline default | Search fields accept typing normally |
 

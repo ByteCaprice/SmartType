@@ -37,7 +37,7 @@ Still pending by design: collecting real latency numbers, live VoiceOver validat
 
 Verification: shell syntax and whitespace checks passed; the expanded isolated installer harness passed 10/10 and the read-only diagnostic test passed; the final full Xcode suite passed 543 tests with no failures using temporary DerivedData. Three independent Tester reviews returned PASS. Although tests requested `REGISTER_WITH_LAUNCH_SERVICES=NO`, Xcode still emitted registration commands for temporary bundles; those paths were deleted and no automated unregister operation was performed. The working installed input method was not replaced or restarted.
 
-The current source explicitly routes Edge and its dotted bundle-ID descendants to **inline** mode (`Input/InputClientPolicy.swift:34-38`). Chrome and WeCom generally use **transparent prediction**. `HANDOFF.md`, README, and the acceptance matrix now reflect this distinction.
+The current source explicitly routes Edge and its dotted bundle-ID descendants to **inline** mode. Chrome uses transparent prediction; WeCom and DingTalk add a temporary marked-text handshake to transparent commits; VS Code uses no-prediction direct compatibility input because Monaco drops bare passthrough while its integrated terminal does not. `HANDOFF.md`, README, and the acceptance matrix reflect these distinctions.
 
 ## Priority Guide
 
@@ -173,7 +173,7 @@ Validation: install, restart hosts, verify icon and switching, then build/test a
 
 - Preserve the offline design; no network prediction service is needed for these improvements.
 - Keep `client.bundleIdentifier()` as the routing source of truth and preserve the explicit Edge exception.
-- Keep Terminal/VS Code passthrough and the current Latin input-source metadata.
+- Keep native terminals passthrough, VS Code in no-prediction direct-input compatibility mode, and the current Latin input-source metadata.
 - Do not introduce persistent marked text in transparent mode just to simplify candidate handling.
 - Never replace client text at an unverified location to make a failed correction appear successful.
 - Do not automate TIS enable/disable/select operations or `lsregister -u` as part of these suggestions.

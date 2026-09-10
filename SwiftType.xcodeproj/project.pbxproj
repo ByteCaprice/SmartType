@@ -41,6 +41,7 @@
 		BB0000000000000000000022 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000021 /* XCTest.framework */; settings = {ATTRIBUTES = (Required, ); }; };
 		IN0000010000000000000002 /* InputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = IN0000020000000000000002 /* InputState.swift */; };
 		CAPS00000000000000000001 /* InputControllerEventRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAPS00000000000000000002 /* InputControllerEventRoutingTests.swift */; };
+		CCR00000000000000000001 /* InputClientCompatibilityRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCR00000000000000000002 /* InputClientCompatibilityRegressionTests.swift */; };
 		IN0000010000000000000006 /* InputControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = IN0000020000000000000006 /* InputControllerTests.swift */; };
 		GC0000010000000000000001 /* GridCandidateState.swift in Sources */ = {isa = PBXBuildFile; fileRef = GC0000020000000000000001 /* GridCandidateState.swift */; };
 		GC0000010000000000000002 /* GridCandidateStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GC0000020000000000000002 /* GridCandidateStateTests.swift */; };
@@ -124,6 +125,7 @@
 		BB0000000000000000000021 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		IN0000020000000000000002 /* InputState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputState.swift; sourceTree = "<group>"; };
 		CAPS00000000000000000002 /* InputControllerEventRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerEventRoutingTests.swift; sourceTree = "<group>"; };
+		CCR00000000000000000002 /* InputClientCompatibilityRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputClientCompatibilityRegressionTests.swift; sourceTree = "<group>"; };
 		IN0000020000000000000006 /* InputControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputControllerTests.swift; sourceTree = "<group>"; };
 		GC0000020000000000000001 /* GridCandidateState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateState.swift; sourceTree = "<group>"; };
 		GC0000020000000000000002 /* GridCandidateStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridCandidateStateTests.swift; sourceTree = "<group>"; };
@@ -400,6 +402,7 @@
 				GC0000020000000000000002 /* GridCandidateStateTests.swift */,
 				IN0000020000000000000006 /* InputControllerTests.swift */,
 				CAPS00000000000000000002 /* InputControllerEventRoutingTests.swift */,
+				CCR00000000000000000002 /* InputClientCompatibilityRegressionTests.swift */,
 				CP0000020000000000000002 /* InputClientPolicyTests.swift */,
 				TP0000020000000000000002 /* InputControllerTransparentPredictionTests.swift */,
 				BB0000000000000000000014 /* InputLogicTests.swift */,
@@ -590,6 +593,7 @@
 				BB0000000000000000000031 /* CandidateWindowSelectionTests.swift in Sources */,
 				BB0000000000000000000032 /* ThemeManagerExtendedTests.swift in Sources */,
 				CAPS00000000000000000001 /* InputControllerEventRoutingTests.swift in Sources */,
+				CCR00000000000000000001 /* InputClientCompatibilityRegressionTests.swift in Sources */,
 				CP0000010000000000000002 /* InputClientPolicyTests.swift in Sources */,
 				TP0000010000000000000002 /* InputControllerTransparentPredictionTests.swift in Sources */,
 				IN0000010000000000000006 /* InputControllerTests.swift in Sources */,

@@ -67,6 +67,13 @@ extension InputController {
         switch InputClientPolicy.mode(forBundleIdentifier: client.bundleIdentifier()) {
         case .passthrough:
             return false
+        case .directInput:
+            return handleDirectInputKey(
+                keyCode: keyCode,
+                modifierFlags: modifierFlags,
+                characters: characters,
+                client: client,
+            )
         case .transparentPrediction:
             return handleTransparentPredictionKey(
                 keyCode: keyCode,
@@ -134,6 +141,41 @@ extension InputController {
     }
 
     // MARK: - Key Handlers
+
+    /// Electron editors can drop an IMK event returned as unhandled, while another
+    /// surface in the same app (such as VS Code's terminal) accepts it. Commit only
+    /// printable text through a short-lived marked phase and leave commands untouched.
+    private func handleDirectInputKey(
+        keyCode: UInt16,
+        modifierFlags: NSEvent.ModifierFlags,
+        characters: String?,
+        client: any IMKTextInput,
+    ) -> Bool {
+        let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard modifiers.isDisjoint(with: Self.modifierMask) else { return false }
+
+        switch KeyCode(rawValue: keyCode) {
+        case .backspace, .returnKey, .escape, .downArrow, .upArrow, .tab, .rightArrow, .leftArrow:
+            return false
+        default:
+            break
+        }
+
+        guard let characters, characters.count == 1, let character = characters.first else {
+            return false
+        }
+        guard character.isLetter
+            || character.isNumber
+            || character.isPunctuation
+            || character.isSymbol
+            || character == " "
+        else {
+            return false
+        }
+
+        insertTextForCompatibility(String(character), client: client)
+        return true
+    }
 
     /// Executes `action` when the candidate window is visible; otherwise commits the buffer
     /// and passes through. Shared by all arrow/tab navigation keys.

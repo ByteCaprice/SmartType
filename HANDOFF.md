@@ -1,6 +1,6 @@
 # SwiftType Developer Handoff
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 This document supersedes the previous 2026-09-04 handoff. It describes the current source, the local troubleshooting outcome, pending changes, and the recommended next work. Historical observations are explicitly labeled; do not mistake them for fresh checks or current failures.
 
@@ -10,7 +10,16 @@ SwiftType is an English-only, offline macOS input method built with Swift 6, App
 
 **Current user-visible status:** after the installed guide-compliant build encountered a stale `imklaunchagent` connection refusal, restarting macOS restored normal input and Caps Lock language switching in TextEdit and Spotlight. SwiftType is operating normally. Preserve this known-good routing and input-source metadata.
 
-**Current assignment:** validate the implementation of [SMART_SPACE_IMPLEMENTATION_GUIDE.md](./SMART_SPACE_IMPLEMENTATION_GUIDE.md) on the `smart-space` branch while preserving the completed improvement-review work. Smart Space retains exact-word evidence, prefers strict prefix completions over corrections, and gives Space a visible default action without creating an explicit candidate selection. The full isolated suite passes 575 tests, and a temporary unsigned universal Release build is valid. The user explicitly authorized installation on 2026-09-09; the reason-aware indicator build `20260909081738` is installed with a valid signature and universal `x86_64 arm64` executable. It was confirmed running as PID `56691`; reopen clients if they retain the preceding IMK session. Real-client, VoiceOver, positioning, and latency checks remain necessary.
+**Current assignment:** validate the implementation of [SMART_SPACE_IMPLEMENTATION_GUIDE.md](./SMART_SPACE_IMPLEMENTATION_GUIDE.md) on the `smart-space` branch while preserving the completed improvement-review work. Smart Space retains exact-word evidence, prefers strict prefix completions over corrections, and gives Space a visible default action without creating an explicit candidate selection. The latest full isolated suite passes 596 tests (585 existing plus 11 new compatibility regressions). The client-compatibility patch for dropped input in VS Code Monaco, WeCom 5.0.10, and DingTalk 8.5.0 is unit-verified and installed for live validation as build `20260909100351`, with a valid signature and universal `x86_64 arm64` executable matching the current Release build. The user subsequently confirmed that typing works well; the installed process and signature were rechecked during the reliability audit. This is general user confirmation, not a completed per-application acceptance matrix. The user then authorized installation of the defensive Caps Lock stale-buffer fix: build `20260909103324` is now installed, signature-valid and universal, and matches the new Release executable. No SwiftType process was observed immediately after replacement; reopen clients and select SwiftType to reconnect. Real-client, VoiceOver, positioning, and latency checks remain necessary.
+
+### Reliability audit — 2026-09-09
+
+- Independent delivery and candidate/state reviews found no reproduced main-path dropped-input defect. Host delivery remains a live-only boundary; do not add speculative insertion retries that could duplicate text.
+- Added a no-write passthrough/direct-input guard to `commitCompositionForLanguageSwitch`, consistent with lifecycle commits. It prevents stale composition from being inserted on Caps Lock if incompatible state reaches such a client; normal typing does not produce this state. New regression tests cover both modes, activation/deactivation, direct-input commands and primed literal Space.
+- Authoritatively verified 596 passed, zero failed/skipped in `/tmp/SwiftTypeTesterFull-C8149C5A-AAA1-4137-96E4-BE5ACEA02088.xcresult`; matching full log uses the same basename with `.log`. Focused tests: `/tmp/SwiftTypeTesterFocused2.xcresult` (11 passed).
+- Installer harness 10/10, diagnostic harness, shell syntax, whitespace, changed-Swift LSP checks passed; session diagnostics contain hints only. Unsigned universal Release built in `/tmp/SwiftTypeReliabilityRelease.As9Zuu`; log `/tmp/swifttype-reliability-release.log`. No installation or input-service restart was performed. Xcode did emit LaunchServices registration for temporary products despite the disable request.
+- Residual checks: VS Code editor versus raw-mode integrated terminal, Option/dead keys, rapid focus/source switching, sleep/wake, and newly updated apps. Finish a composition and close the affected host before changing recovery routing preferences; policy is read dynamically, not pinned to a session.
+- Following the audit, the user authorized installation of the Caps Lock hardening. Build `20260909103324` replaced `20260909100351`; signature, `x86_64 arm64` architectures, and installed/Release executable equality passed. Install log: `/tmp/swifttype-caps-lock-hardening-install.log`. The install script stopped SwiftType and refreshed TextInputMenuAgent/TextInputSwitcher; no broad IMK service restart was performed. The compatibility changes and audit are included in the work being merged into `main`.
 
 Recommended first steps for the next developer:
 
@@ -25,23 +34,23 @@ Recommended first steps for the next developer:
 
 | Item | State verified while preparing this handoff |
 | --- | --- |
-| Workspace | `/Users/developer/coding/SwiftType` |
+| Workspace | Local checkout (personal home paths redacted) |
 | Branch | `main` |
-| Current committed baseline | `0abe996` - `Document current state and harden installation` |
+| Current baseline | Smart Space, client compatibility, and Caps Lock hardening; consult `git log` for current hashes after the privacy rewrite |
 | Earlier implementation commits | `02f45be` - prediction/candidate reliability; `45aa8ba` - English-only input, Caps Lock switching, and per-app modes |
-| Private tracking branch | `github/main`; at the latest review, local `main` was 0 ahead / 2 behind because the remote reverted `0abe996` and then added `INPUT_METHOD_SWITCHING.md` |
-| Private working remote | `github` = `https://github.com/ByteCaprice/SwiftType.git` |
+| Private tracking branch | `github/main`; the feature work is being merged for publication preparation |
+| Private working remote | `github` = `https://github.com/ByteCaprice/SmartType.git` |
 | Public upstream | `origin` = `https://github.com/mgxv/SwiftType.git` |
 
 Always refresh remote state before publishing; branch information in documentation becomes historical immediately. Never accidentally push private work to `origin`. The remote switching guide was copied into the worktree as a specification only; remote source did not replace local `main`.
 
-The installation, prediction scheduling, instrumentation, accessibility, positioning, settings, documentation, and test improvements described below are currently uncommitted working-tree changes on top of `0abe996`. Review `git status` and commit them in logical groups. Preserve the untracked `INPUT_METHOD_SWITCHING.md` intentionally or decide explicitly whether it belongs in a commit.
+The installation, prediction, compatibility, and UI improvements below are included in the feature work being merged into `main`. Historical hashes in this document predate the privacy rewrite and must not be treated as current references. SmartType is the repository/README name only; application identifiers and code remain unchanged. Only the repository owner's local commit identities and personal home paths are anonymized; upstream authorship is preserved. The repository remains private pending a separate publication decision.
 
 ## 3. Installed Application and Local Environment
 
 | Item | Value / evidence status |
 | --- | --- |
-| Intended installation | `/Users/developer/Library/Input Methods/SwiftType.app` |
+| Intended installation | `~/Library/Input Methods/SwiftType.app` |
 | Bundle and input-source ID | `com.matthew.inputmethod.SwiftType` |
 | Installed short version | `1.0`, reread from installed `Info.plist` for this handoff |
 | Installed build version | `20260907020122`, reread for this handoff |
@@ -100,27 +109,31 @@ Routing priority:
 1. Missing/empty bundle ID: inline.
 2. The app's own bundle ID: passthrough.
 3. `com.microsoft.edgemac` or a dotted descendant (`com.microsoft.edgemac.*`): inline.
-4. Known terminal/VS Code passthrough IDs: passthrough.
-5. Transparent custom entries, known IDs/prefixes, or Chromium-family heuristic: transparent prediction.
-6. Everything else: inline.
+4. VS Code or a custom direct-input entry: direct compatibility input.
+5. Known native terminal IDs: passthrough.
+6. Transparent custom entries, known IDs/prefixes, or Chromium-family heuristic: transparent prediction.
+7. Everything else: inline.
 
 | Mode | Current examples | Behavior |
 | --- | --- | --- |
 | Inline | TextEdit, Safari, Xcode, Edge and its dotted bundle descendants | Marked-text composition and synchronous predictions |
-| Passthrough | Terminal, iTerm2, Ghostty, WezTerm, kitty, Alacritty, Warp, Hyper, Termius, VS Code, own UI | Keydown returns false; no composition or suggestions |
-| Transparent prediction | Chrome, Chromium, Brave, Arc, Opera, Vivaldi, WeCom and known helpers | No persistent marked text; mirrored state and delayed predictions |
+| Passthrough | Terminal, iTerm2, Ghostty, WezTerm, kitty, Alacritty, Warp, Hyper, Termius, own UI | Keydown returns false; no composition or suggestions |
+| Direct input | VS Code | No suggestions; temporary mark-and-commit for printable text; commands/navigation remain host-owned |
+| Transparent prediction | Chrome, Chromium, Brave, Arc, Opera, Vivaldi, WeCom/DingTalk and known helpers | No persistent marked text; mirrored state and delayed predictions; affected CEF clients use temporary mark-and-commit |
 
 **Important correction from the old handoff:** Edge is deliberately inline in current code. Do not move it back to transparent mode based on the old incident narrative. The README explains that its fields drop modeless input.
 
-The custom UserDefaults key is `transparentPredictionBundleIdentifiers`. Entries currently match exact IDs or raw prefixes. Known helpers include `88L2Q4487U.com.tencent.wework`; the heuristic checks substrings such as `chrome` and `chromium`. Broad matching is a review opportunity, not something already fixed.
+Compatibility can be changed without rebuilding through three UserDefaults arrays: `transparentPredictionBundleIdentifiers`, `directInputBundleIdentifiers`, and `markedTextPrimingBundleIdentifiers`. Entries match exact IDs or dotted helper descendants. A custom transparent entry automatically receives marked-text priming; custom direct input overrides built-in terminal passthrough. Edge and SwiftType's own process remain hard exceptions. Known helpers include `88L2Q4487U.com.tencent.wework`; the Chromium heuristic still checks substrings such as `chrome` and `chromium`.
 
-Existing manual opt-in mechanism for a newly problematic app:
+Examples for a newly problematic app:
 
 ```bash
 defaults write com.matthew.inputmethod.SwiftType transparentPredictionBundleIdentifiers -array-add 'com.example.NewApp'
+defaults write com.matthew.inputmethod.SwiftType directInputBundleIdentifiers -array-add 'com.example.NewApp'
+defaults write com.matthew.inputmethod.SwiftType markedTextPrimingBundleIdentifiers -array-add 'com.example.NewApp'
 ```
 
-This changes preferences; do not run it casually. The Edge and passthrough exceptions take precedence over this array. Do not add per-app menu switches without revisiting the explicit project decision.
+Choose one based on the documented behavior; do not write all three casually. Quit and reopen the affected app after changing policy. Do not add a per-app menu based on `NSWorkspace.frontmostApplication`, because it may not identify the actual IMK client.
 
 ## 6. Key Handling and Text Safety
 
@@ -138,7 +151,7 @@ This changes preferences; do not run it casually. The Edge and passthrough excep
 
 ### Transparent Mode
 
-The previous handoff said letters passed through without any client write. That is no longer the implementation. Current printable handling calls `client.insertText` and returns true, while maintaining a mirror and leaving no persistent marked text.
+The previous handoff said letters passed through without any client write. That is no longer the implementation. Current printable handling commits text and returns true, while maintaining a mirror and leaving no persistent marked text. WeCom and DingTalk require `setMarkedText(text)` immediately followed by `insertText(text)`; other transparent clients retain direct insertion.
 
 | Event | Current behavior |
 | --- | --- |
@@ -171,9 +184,9 @@ Automatic punctuation cleanup verifies the same client, expected collapsed curso
 
 Historical investigation of Chromium identified a marked-text/multi-character-insertion gate for raw-key forwarding. A simplistic "consume key, do not set marked text, do not insert anything" implementation can leak or duplicate events. Persistent marked text can also interfere with language switching in some clients.
 
-Current single-character insertion and the historical gate description need real-client verification/documentation, not an automatic rollback. Mock IMK clients do not reproduce Chromium's native event pipeline. The review did not establish a current duplicate-typing bug. Test Chrome/WeCom directly and Edge separately before changing these paths.
+Live testing on 2026-09-09 established three dropped-input failures: VS Code 1.136.2 Monaco editors under bare passthrough, WeCom 5.0.10 under single-character direct insertion, and DingTalk 8.5.0 under inline composition. VS Code's integrated terminal still accepted raw passthrough, proving that bundle-ID routing cannot distinguish its editor and terminal surfaces. The compatibility implementation therefore gives VS Code no predictions but commits printable text through a synchronous temporary marked phase; control/navigation keys still pass through. WeCom and DingTalk use the same temporary handshake inside transparent prediction. Unit tests verify call order and state, but real clients must confirm delivery exactly once.
 
-Historical upstream references: Chromium `content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm`, Squirrel `force_marked_text_for_direct_commit`/issue #906, fcitx5-macos dummy preedit, macSKK Direct Mode. These references were investigated earlier, not freshly verified for current upstream versions in this handoff.
+Upstream precedent: Rime Squirrel's `force_marked_text_for_direct_commit` performs the same `setMarkedText` then `insertText` sequence because some `NSTextInputClient` implementations require a marked phase before accepting direct commits. Chromium `content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm`, fcitx5-macos dummy preedit, and macSKK Direct Mode remain related references.
 
 ## 7. Prediction, UI, and Settings
 
@@ -202,10 +215,10 @@ Input-source queries made after switching back to ChatGPT reported Simplified Pi
 Multiple discoverable bundles shared the same ID:
 
 ```text
-/Users/developer/coding/SwiftType/build/Debug/SwiftType.app
-/Users/developer/coding/SwiftType/build/Release/SwiftType.app
-/Users/developer/Library/Developer/Xcode/DerivedData/SwiftType-hirodvyrzwyfzdheybukpvcimzru/Build/Products/Debug/SwiftType.app
-/Users/developer/Library/Input Methods/SwiftType.app
+~/coding/SwiftType/build/Debug/SwiftType.app
+~/coding/SwiftType/build/Release/SwiftType.app
+~/Library/Developer/Xcode/DerivedData/SwiftType-<build-id>/Build/Products/Debug/SwiftType.app
+~/Library/Input Methods/SwiftType.app
 ```
 
 The project Debug bundle had old icon metadata, lacking `tsInputMethodIconFileKey` and `TISIconIsTemplate`. Its presence plus long-lived input UI/IMK sessions was a plausible source of stale behavior.
@@ -242,7 +255,7 @@ Ordinary local installation does not restart `imklaunchagent` or force-kill shar
 
 The isolated shell harness at `scripts/release/tests/test_pkg_install.sh` never touches the active input method. Its ten cases cover missing/invalid/corrupt payloads, successful replacement, error/signal rollback, failed first installation, unwritable destination, and file/directory symlink rejection. `scripts/release/tests/test_diagnose.sh` verifies the read-only diagnostic against an isolated home. A real generated PKG installation in a disposable environment remains recommended before public distribution.
 
-Phase 1–3 verification on 2026-09-08: shell syntax and whitespace checks passed, the original installer harness passed 4/4, the full isolated Xcode suite passed 533 tests with 0 failures, and the independent Tester returned PASS. After the remaining improvements, the final isolated Xcode suite passed 543 tests with 0 failures. The expanded installer harness passed 10/10, the diagnostic harness and live redaction check passed, and a third independent Tester returned PASS. Smart Space verification on 2026-09-09 passed 575 tests with 0 failures or skips; focused policy/controller/UI tests and an independent Tester also passed, and an unsigned temporary Release build was universal `x86_64 arm64` with a valid plist. Temporary DerivedData does not alter the installed input method. Xcode still emitted LaunchServices registration commands despite requesting `REGISTER_WITH_LAUNCH_SERVICES=NO`; no automated unregister operation was performed.
+Phase 1–3 verification on 2026-09-08: shell syntax and whitespace checks passed, the original installer harness passed 4/4, the full isolated Xcode suite passed 533 tests with 0 failures, and the independent Tester returned PASS. After the remaining improvements, the final isolated Xcode suite passed 543 tests with 0 failures. The expanded installer harness passed 10/10, the diagnostic harness and live redaction check passed, and a third independent Tester returned PASS. Smart Space and client-compatibility verification on 2026-09-09 passed 585 tests with 0 failures or skips; focused policy/controller/UI tests and an independent Tester also passed, and an unsigned temporary Release build was universal `x86_64 arm64` with a valid plist. Temporary DerivedData does not alter the installed input method. Xcode still emitted LaunchServices registration commands despite requesting `REGISTER_WITH_LAUNCH_SERVICES=NO`; no automated unregister operation was performed.
 
 ## 10. Improvement Review and Next Work
 
@@ -322,8 +335,10 @@ Mocks do not emulate real host text pipelines or system input-source switching. 
 | --- | --- |
 | TextEdit and Safari / inline | Literal text, suggestion commit, arrows, Space/Return, contractions, Backspace, switch during a partial word |
 | Edge / inline exception | Same scenarios in address bar and page field; no missing/duplicate characters; input-source switch during composition |
-| Chrome and WeCom / transparent | Letters/punctuation inserted once, Backspace deletes once, suffix and typo correction commits, arrows/Tab preserve host behavior, switching leaves no composition |
-| Terminal and VS Code / passthrough | Shell/editor shortcuts and input unchanged, no candidate popup, normal source switching |
+| Chrome / transparent | Letters/punctuation inserted once, Backspace deletes once, suffix and typo correction commits, arrows/Tab preserve host behavior, switching leaves no composition |
+| WeCom and DingTalk / transparent compatibility | Same as Chrome, plus verify temporary mark-and-commit neither drops nor duplicates characters |
+| Native terminals / passthrough | Shell/editor shortcuts and input unchanged, no candidate popup, normal source switching |
+| VS Code / direct input | Monaco editor and integrated terminal both accept printable text once; no popup; Ctrl/Cmd/Option, Backspace, arrows, Tab, Escape, and Return remain host-owned |
 | Multiple fields/displays | Move caret/select text/switch field during delayed refresh; no stale overwrite or misplaced panel |
 
 Save user documents before any requested host restart. Do not force-quit browsers/editors with unsaved work. Record exact app version, effective policy mode, field type, key sequence, and actual input source in the same context.
@@ -346,11 +361,11 @@ Historical artifacts, not guaranteed to still exist:
 | Artifact | Location |
 | --- | --- |
 | Full test log after sync | `/var/folders/yt/ngt31b5x55zgdf8lj7xwqqt40000gn/T/opencode/swifttype-remote-sync-tests.log` |
-| Initial Edge collection | `/Users/developer/.local/share/opencode/tool-output/tool_079b2ee7e001JNWFhf1oswk8ka` |
-| Edge collection after service refresh | `/Users/developer/.local/share/opencode/tool-output/tool_079b73791001i81iWGZa4q8mtW` |
+| Initial Edge collection | Local diagnostic artifact (not distributed) |
+| Edge collection after service refresh | Local diagnostic artifact (not distributed) |
 | Older Caps Lock investigation | `/var/folders/yt/ngt31b5x55zgdf8lj7xwqqt40000gn/T/opencode/swifttype-caps.log` |
-| Input-source preference file | `/Users/developer/Library/Preferences/com.apple.HIToolbox.plist` (inspect only unless explicitly authorized) |
-| Prior local comparison project | `/Users/developer/coding/hallelujahIM` |
+| Input-source preference file | `~/Library/Preferences/com.apple.HIToolbox.plist` (inspect only unless explicitly authorized) |
+| Prior local comparison project | `~/coding/hallelujahIM` |
 
 ## 13. Non-Negotiable Guardrails
 
@@ -358,7 +373,7 @@ Historical artifacts, not guaranteed to still exist:
 - Do not commit, amend, push, or create a PR without an explicit request. Check the remote carefully when publishing.
 - Do not use `TISEnableInputSource`, `TISDisableInputSource`, `TISSelectInputSource`, or `lsregister -u` to force system configuration.
 - Keep routing grounded in `client.bundleIdentifier()`, not `NSWorkspace.frontmostApplication`.
-- Keep VS Code and terminals passthrough; no browser Web CLI special case is requested.
+- Keep native terminals passthrough. Keep VS Code in no-prediction direct-input mode unless live editor and integrated-terminal evidence justifies another routing change.
 - Do not add per-app menu toggles contrary to the existing decision; use the existing documented preference mechanism when appropriate.
 - Preserve Latin/English input-source metadata and the template icon resource.
 - Do not persist or log user-entered words/document contents for diagnostics or optimization.

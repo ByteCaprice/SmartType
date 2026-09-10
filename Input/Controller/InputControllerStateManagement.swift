@@ -13,7 +13,8 @@ extension InputController {
     func cancelPredictions() {
         pendingTransparentPredictionUpdate?.cancel()
         pendingTransparentPredictionUpdate = nil
-        state.currentPredictions = []
+        transparentPredictionGeneration &+= 1
+        state.predictionSnapshot = nil
         CandidateWindow.shared.hide()
     }
 }

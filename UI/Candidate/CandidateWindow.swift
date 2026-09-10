@@ -29,8 +29,13 @@ import InputMethodKit
     private var gridState: GridCandidateState?
     private var candidateLayout = CandidateLayout.grid
     private var hasActiveSelection = false
+    private var defaultSpaceAction = DefaultSpaceAction.literal
+    private var defaultSpaceReason = DefaultSpaceReason.fallbackLiteral
+    private var literalSpaceText: String?
     /// Cached cursor rect — reused when reflowing the panel on expand / collapse.
     private var lastCursorRect: NSRect = .zero
+    private var lastValidCursorRect: NSRect?
+    private var cursorClientIdentifier: ObjectIdentifier?
 
     // MARK: - Public accessors
 
@@ -40,6 +45,22 @@ import InputMethodKit
 
     var isLiteralSelected: Bool {
         gridState?.isLiteralSelected ?? false
+    }
+
+    var accessibilityCandidateLabels: [String] {
+        candidateView.accessibilityCandidateLabels
+    }
+
+    var accessibilitySelectedCandidateLabel: String? {
+        candidateView.accessibilitySelectedCandidateLabel
+    }
+
+    var spaceHintText: String? {
+        candidateView.spaceHintText
+    }
+
+    var visualCandidateLabels: [String] {
+        candidateView.visualCandidateLabels
     }
 
     // MARK: - Init
@@ -133,17 +154,34 @@ import InputMethodKit
     func show(
         candidates: [String],
         literalText: String? = nil,
+        defaultSpaceAction: DefaultSpaceAction = .literal,
+        defaultSpaceReason: DefaultSpaceReason = .fallbackLiteral,
+        literalSpaceText: String? = nil,
         layout: CandidateLayout = .grid,
-        client: (any IMKTextInput)?
+        client: (any IMKTextInput)?,
+        candidateSelectionHandler: (@MainActor (Int) -> Void)? = nil
     ) {
         guard !candidates.isEmpty || literalText != nil else {
             hide()
             return
         }
 
-        applyTheme()
+        let presentationInterval = PerformanceTrace.signposter.beginInterval("Candidate presentation")
+        defer { PerformanceTrace.signposter.endInterval("Candidate presentation", presentationInterval) }
+
         let unified = literalText.map { [$0] + candidates } ?? candidates
+        if literalText != nil, let candidateSelectionHandler {
+            candidateView.candidateSelectionHandler = { unifiedIndex in
+                guard unifiedIndex > 0 else { return }
+                candidateSelectionHandler(unifiedIndex - 1)
+            }
+        } else {
+            candidateView.candidateSelectionHandler = candidateSelectionHandler
+        }
         candidateLayout = layout
+        self.defaultSpaceAction = defaultSpaceAction
+        self.defaultSpaceReason = defaultSpaceReason
+        self.literalSpaceText = literalSpaceText
         // Literal slots are retained for callers that explicitly request one. Normal
         // typing supplies predictions only and therefore starts without a selection.
         hasActiveSelection = literalText != nil
@@ -160,18 +198,35 @@ import InputMethodKit
         if let client {
             panel.level = NSWindow.Level(rawValue: Int(client.windowLevel()) + 1)
         }
-        lastCursorRect = resolvedCursorRect(from: client)
-        refreshView()
-
-        let (panelWidth, panelHeight) = fittingPanelSize()
-        let origin = clampedPanelOrigin(cursorRect: lastCursorRect, panelWidth: panelWidth, panelHeight: panelHeight)
-        presentPanel(at: origin, width: panelWidth, height: panelHeight)
+        lastCursorRect = PerformanceTrace.measure("Candidate geometry") {
+            resolvedCursorRect(from: client)
+        }
+        PerformanceTrace.measure("Candidate rendering") {
+            refreshView()
+            let (panelWidth, panelHeight) = fittingPanelSize()
+            let origin = clampedPanelOrigin(cursorRect: lastCursorRect, panelWidth: panelWidth, panelHeight: panelHeight)
+            presentPanel(at: origin, width: panelWidth, height: panelHeight)
+        }
     }
 
     func hide() {
         panel.orderOut(nil)
         gridState = nil
         hasActiveSelection = false
+        defaultSpaceAction = .literal
+        defaultSpaceReason = .fallbackLiteral
+        literalSpaceText = nil
+        candidateView.clearAccessibilityCandidates()
+    }
+
+    func performAccessibilityCandidateSelection(at index: Int) -> Bool {
+        candidateView.performAccessibilityCandidateSelection(at: index)
+    }
+
+    func resetSessionAnchor() {
+        lastCursorRect = .zero
+        lastValidCursorRect = nil
+        cursorClientIdentifier = nil
     }
 
     // MARK: - Row navigation
@@ -283,10 +338,30 @@ import InputMethodKit
 
     private func refreshView() {
         guard let gs = gridState else { return }
+        let displaySpaceAction: DefaultSpaceAction
+        if hasActiveSelection,
+           let selectedIndex = gs.predictionIndex(row: gs.activeRow, col: gs.activeCol)
+        {
+            displaySpaceAction = .prediction(index: selectedIndex)
+        } else if hasActiveSelection {
+            displaySpaceAction = .literal
+        } else {
+            switch defaultSpaceAction {
+            case .literal:
+                displaySpaceAction = .literal
+            case let .prediction(index):
+                displaySpaceAction = .prediction(index: index + (gs.hasLiteral ? 1 : 0))
+            }
+        }
         candidateView.updateGrid(
             gs,
             layout: candidateLayout,
-            showsSelection: hasActiveSelection
+            showsSelection: hasActiveSelection,
+            spacePresentation: CandidateSpacePresentation(
+                action: displaySpaceAction,
+                reason: defaultSpaceReason,
+                literalText: literalSpaceText
+            )
         )
     }
 
@@ -294,9 +369,9 @@ import InputMethodKit
     /// Called after any navigation that changes the number of visible rows.
     private func refreshViewAndReframe() {
         refreshView()
-        let (w, h) = fittingPanelSize()
-        let origin = clampedPanelOrigin(cursorRect: lastCursorRect, panelWidth: w, panelHeight: h)
-        presentPanel(at: origin, width: w, height: h)
+        let (panelWidth, panelHeight) = fittingPanelSize()
+        let origin = clampedPanelOrigin(cursorRect: lastCursorRect, panelWidth: panelWidth, panelHeight: panelHeight)
+        presentPanel(at: origin, width: panelWidth, height: panelHeight)
     }
 
     private func fittingPanelSize() -> (width: CGFloat, height: CGFloat) {
@@ -312,15 +387,53 @@ import InputMethodKit
 
     private func resolvedCursorRect(from client: (any IMKTextInput)?) -> NSRect {
         if let client {
-            var rect = NSRect.zero
-            client.attributes(forCharacterIndex: 0, lineHeightRectangle: &rect)
-            if rect.origin != .zero {
+            let identifier = ObjectIdentifier(client)
+            if cursorClientIdentifier != identifier {
+                lastValidCursorRect = nil
+                cursorClientIdentifier = identifier
+            }
+
+            var attributeRect = NSRect.zero
+            client.attributes(forCharacterIndex: 0, lineHeightRectangle: &attributeRect)
+            if let rect = Self.usableCursorRect(attributeRect) {
+                lastValidCursorRect = rect
                 return rect
             }
+
+            let selection = client.selectedRange()
+            if selection.location != NSNotFound {
+                var actualRange = NSRange(location: NSNotFound, length: 0)
+                let firstRect = client.firstRect(
+                    forCharacterRange: NSRange(location: selection.location, length: 0),
+                    actualRange: &actualRange
+                )
+                if let rect = Self.usableCursorRect(firstRect) {
+                    lastValidCursorRect = rect
+                    return rect
+                }
+            }
+
+            if let lastValidCursorRect {
+                return lastValidCursorRect
+            }
         }
+
         let mouse = NSEvent.mouseLocation
-        return NSRect(x: mouse.x, y: mouse.y - Layout.fallbackLineHeight,
-                      width: 0, height: Layout.fallbackLineHeight)
+        return NSRect(
+            x: mouse.x,
+            y: mouse.y - Layout.fallbackLineHeight,
+            width: 0,
+            height: Layout.fallbackLineHeight
+        )
+    }
+
+    static func usableCursorRect(_ rect: NSRect) -> NSRect? {
+        let standardized = rect.standardized
+        let values = [standardized.minX, standardized.minY, standardized.width, standardized.height]
+        guard values.allSatisfy(\.isFinite), standardized != .zero, standardized.height > 0 else {
+            return nil
+        }
+        return standardized
     }
 
     private func clampedPanelOrigin(cursorRect: NSRect, panelWidth: CGFloat, panelHeight: CGFloat) -> NSPoint {

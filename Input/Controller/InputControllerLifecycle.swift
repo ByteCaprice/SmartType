@@ -10,6 +10,7 @@ extension InputController {
         let client = sender as? (any IMKTextInput)
         MainActor.assumeIsolated {
             resetState()
+            CandidateWindow.shared.resetSessionAnchor()
             client?.overrideKeyboard(withKeyboardNamed: "com.apple.keylayout.US")
         }
     }
@@ -21,6 +22,7 @@ extension InputController {
                 commitCompositionBuffer(client: client)
             }
             CandidateWindow.shared.hide()
+            CandidateWindow.shared.resetSessionAnchor()
         }
     }
 

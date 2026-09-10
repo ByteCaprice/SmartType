@@ -2,8 +2,7 @@ import AppKit
 @testable import SwiftType
 import XCTest
 
-/// Tests for `ThemeManager` grid column/row validation, including the known gap where
-/// `setGridCols` does not guard at write time (unlike `setGridRows`).
+/// Tests for `ThemeManager` grid column/row validation at both read and write boundaries.
 @MainActor final class ThemeManagerGridValidationTests: XCTestCase {
     private var defaults: UserDefaults!
     private var manager: ThemeManager!
@@ -19,7 +18,7 @@ import XCTest
         defaults.removePersistentDomain(forName: suiteName)
     }
 
-    // MARK: - gridCols validation (read-time only)
+    // MARK: - gridCols validation
 
     func testGridColsDefaultIs5() {
         XCTAssertEqual(manager.gridCols, ThemeManager.defaultGridCols)
@@ -48,13 +47,11 @@ import XCTest
         XCTAssertEqual(manager.gridCols, ThemeManager.defaultGridCols)
     }
 
-    /// Known behavior: `setGridCols` does NOT guard at write time (unlike `setGridRows`).
-    /// This test documents that the raw value IS stored even when out of range.
-    func testSetGridColsStoresOutOfRangeValue() {
+    func testSetGridColsRejectsOutOfRangeValue() {
+        manager.setGridCols(4)
         manager.setGridCols(99)
-        let stored = defaults.integer(forKey: "theme.gridCols")
-        XCTAssertEqual(stored, 99,
-                       "setGridCols stores the raw value; validation is read-time only")
+        XCTAssertEqual(manager.gridCols, 4)
+        XCTAssertEqual(defaults.integer(forKey: "theme.gridCols"), 4)
     }
 
     // MARK: - gridRows validation (write-time guard)
@@ -84,8 +81,8 @@ import XCTest
 
     func testGridRowsFallsBackToDefaultForCorruptedStorage() {
         defaults.set(99, forKey: "theme.gridRows")
-        let m = ThemeManager(defaults: defaults)
-        XCTAssertEqual(m.gridRows, ThemeManager.defaultGridRows)
+        let freshManager = ThemeManager(defaults: defaults)
+        XCTAssertEqual(freshManager.gridRows, ThemeManager.defaultGridRows)
     }
 
     // MARK: - themeDidChange notification
@@ -111,16 +108,13 @@ import XCTest
         XCTAssertEqual(counter.count, 1)
     }
 
-    /// Known behavior gap: `setGridCols` fires `.themeDidChange` even for out-of-range values.
-    /// The getter returns the default, but the notification still fires. This test documents it.
-    func testSetGridColsFiresNotificationEvenForOutOfRange() {
+    func testSetGridColsDoesNotNotifyForOutOfRangeValue() {
         let counter = NotificationCounter()
         let token = NotificationCenter.default.addObserver(
             forName: .themeDidChange, object: nil, queue: nil,
         ) { _ in counter.increment() }
         manager.setGridCols(999)
         NotificationCenter.default.removeObserver(token)
-        XCTAssertEqual(counter.count, 1,
-                       "setGridCols does not guard at write time, so the notification fires for invalid values")
+        XCTAssertEqual(counter.count, 0)
     }
 }

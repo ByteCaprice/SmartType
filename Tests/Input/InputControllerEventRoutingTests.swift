@@ -22,12 +22,13 @@ import XCTest
 /// The switch-away safety net is `deactivateServer`, which commits any open
 /// composition when macOS ends the session.
 @MainActor
+// swiftlint:disable:next type_body_length
 final class InputControllerEventRoutingTests: XCTestCase {
     private var controller: InputController!
     private var client: RecordingTextInputClient!
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    override func setUp() async throws {
+        try await super.setUp()
         CandidateWindow.shared.hide()
         client = RecordingTextInputClient()
         controller = try XCTUnwrap(
@@ -36,9 +37,9 @@ final class InputControllerEventRoutingTests: XCTestCase {
         )
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         CandidateWindow.shared.hide()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - recognizedEvents must include flagsChanged (the core of the fix)
@@ -263,7 +264,7 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertTrue(controller.state.compositionBuffer.isEmpty)
     }
 
-    func testSpaceWithoutSelectionCommitsTypedTextWithTrailingSpace() throws {
+    func testSpaceWithoutAutomaticTargetCommitsTypedTextWithTrailingSpace() throws {
         controller.state.compositionBuffer = "hel"
         controller.state.currentPredictions = ["hello"]
         CandidateWindow.shared.show(
@@ -276,6 +277,133 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertTrue(controller.handle(event, client: client))
         XCTAssertEqual(client.insertedText, ["hel "])
         XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testSpaceCommitsFreshDefaultPredictionWithTrailingSpace() throws {
+        controller.state.compositionBuffer = "appl"
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: "appl",
+            predictions: ["apply", "apple"],
+            defaultSpaceAction: .prediction(index: 0),
+            reason: .prefixCompletion
+        )
+        CandidateWindow.shared.show(
+            candidates: ["apply", "apple"],
+            defaultSpaceAction: .prediction(index: 0),
+            literalSpaceText: "appl",
+            layout: .vertical,
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["apply "])
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testSpacePreservesCompleteWordWhenDefaultActionIsLiteral() throws {
+        controller.state.compositionBuffer = "app"
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: "app",
+            predictions: ["appreciate", "apply"],
+            defaultSpaceAction: .literal,
+            reason: .exactCompletion
+        )
+        CandidateWindow.shared.show(
+            candidates: ["appreciate", "apply"],
+            literalSpaceText: "app",
+            layout: .vertical,
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["app "])
+    }
+
+    func testSpaceRejectsSnapshotForDifferentBuffer() throws {
+        controller.state.compositionBuffer = "appli"
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: "appl",
+            predictions: ["apply"],
+            defaultSpaceAction: .prediction(index: 0),
+            reason: .prefixCompletion
+        )
+        CandidateWindow.shared.show(
+            candidates: ["apply"],
+            defaultSpaceAction: .prediction(index: 0),
+            literalSpaceText: "appl",
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["appli "])
+    }
+
+    func testHiddenWindowPreventsAutomaticCandidateCommit() throws {
+        controller.state.compositionBuffer = "appl"
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: "appl",
+            predictions: ["apply"],
+            defaultSpaceAction: .prediction(index: 0),
+            reason: .prefixCompletion
+        )
+        CandidateWindow.shared.show(
+            candidates: ["apply"],
+            defaultSpaceAction: .prediction(index: 0),
+            literalSpaceText: "appl",
+            client: client
+        )
+        controller.hidePalettes()
+        let event = try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["appl "])
+    }
+
+    func testExplicitSelectionOverridesDefaultSpaceCandidate() throws {
+        controller.state.compositionBuffer = "appl"
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: "appl",
+            predictions: ["apply", "apple"],
+            defaultSpaceAction: .prediction(index: 0),
+            reason: .prefixCompletion
+        )
+        CandidateWindow.shared.show(
+            candidates: ["apply", "apple"],
+            defaultSpaceAction: .prediction(index: 0),
+            literalSpaceText: "appl",
+            layout: .vertical,
+            client: client
+        )
+        CandidateWindow.shared.moveActiveRowDown()
+        CandidateWindow.shared.moveActiveRowDown()
+        let event = try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["apple "])
+    }
+
+    func testReturnIgnoresUnselectedDefaultSpacePrediction() throws {
+        controller.state.compositionBuffer = "appl"
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: "appl",
+            predictions: ["apply"],
+            defaultSpaceAction: .prediction(index: 0),
+            reason: .prefixCompletion
+        )
+        CandidateWindow.shared.show(
+            candidates: ["apply"],
+            defaultSpaceAction: .prediction(index: 0),
+            literalSpaceText: "appl",
+            client: client
+        )
+        let event = try Self.keyDownEvent(characters: "\r", keyCode: KeyCode.returnKey.rawValue)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(client.insertedText, ["appl"])
+        XCTAssertFalse(controller.state.didAutoInsertTrailingSpace)
     }
 
     func testReturnCommitsSelectedPredictionWithoutTrailingSpace() throws {
@@ -333,9 +461,182 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertTrue(client.markedText.isEmpty)
     }
 
-    func testVSCodeDefaultsToPassthroughButXcodeDoesNot() {
-        XCTAssertTrue(InputController.terminalBundleIdentifiers.contains("com.microsoft.VSCode"))
-        XCTAssertFalse(InputController.terminalBundleIdentifiers.contains("com.apple.dt.Xcode"))
+    func testVSCodePrintableTextUsesPrimedDirectInputWithoutComposition() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "a", keyCode: 0),
+            client: client
+        ))
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue),
+            client: client
+        ))
+
+        XCTAssertEqual(client.markedText, ["a", " "])
+        XCTAssertEqual(client.insertedText, ["a", " "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+
+        controller.deactivateServer(client)
+        XCTAssertEqual(client.markedText, ["a", " "])
+        XCTAssertEqual(client.insertedText, ["a", " "])
+    }
+
+    func testVSCodeCommandsStayUnmodifiedForIntegratedTerminal() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        XCTAssertFalse(controller.handle(
+            try Self.keyDownEvent(characters: "\u{8}", keyCode: KeyCode.backspace.rawValue),
+            client: client
+        ))
+        XCTAssertFalse(controller.handle(
+            try Self.keyDownEvent(characters: "c", keyCode: 8, modifiers: .control),
+            client: client
+        ))
+        XCTAssertFalse(controller.handle(
+            try Self.keyDownEvent(characters: "\r", keyCode: KeyCode.returnKey.rawValue),
+            client: client
+        ))
+
+        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testVSCodeShiftUppercaseDigitAndPunctuationArePrimedOnce() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "A", keyCode: 0, modifiers: .shift),
+            client: client
+        ))
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "5", keyCode: KeyCode.key5.rawValue),
+            client: client
+        ))
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: ".", keyCode: 47),
+            client: client
+        ))
+
+        // Shift is not a command modifier; the uppercase letter, digit, and
+        // punctuation must each be committed exactly once through the primed path.
+        XCTAssertEqual(client.markedText, ["A", "5", "."])
+        XCTAssertEqual(client.insertedText, ["A", "5", "."])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testVSCodeNavigationAndEscapeKeysStayHostOwned() throws {
+        client.bundleIdentifierValue = "com.microsoft.VSCode"
+
+        let hostKeys: [(String, UInt16)] = [
+            ("\u{1B}", KeyCode.escape.rawValue),
+            ("\t", KeyCode.tab.rawValue),
+            ("\u{F702}", KeyCode.leftArrow.rawValue),
+            ("\u{F703}", KeyCode.rightArrow.rawValue),
+            ("\u{F701}", KeyCode.downArrow.rawValue),
+            ("\u{F700}", KeyCode.upArrow.rawValue),
+        ]
+
+        for (characters, keyCode) in hostKeys {
+            XCTAssertFalse(
+                controller.handle(
+                    try Self.keyDownEvent(characters: characters, keyCode: keyCode),
+                    client: client
+                ),
+                "key \(keyCode) must stay host-owned in direct input mode"
+            )
+        }
+
+        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testTypingAndBackspaceKeepSmartSpaceSnapshotInSync() throws {
+        controller.spellPredictor = MappingPredictionProvider(results: [
+            "app": PredictionResult(
+                predictions: ["application", "apply"],
+                defaultSpaceAction: .literal,
+                reason: .exactCompletion
+            ),
+            "appl": PredictionResult(
+                predictions: ["apply", "apple"],
+                defaultSpaceAction: .prediction(index: 0),
+                reason: .prefixCompletion
+            ),
+            "appli": PredictionResult(
+                predictions: ["application", "applied"],
+                defaultSpaceAction: .prediction(index: 0),
+                reason: .prefixCompletion
+            ),
+        ])
+
+        for character in ["a", "p", "p"] {
+            XCTAssertTrue(controller.handle(
+                try Self.keyDownEvent(characters: character, keyCode: 0),
+                client: client
+            ))
+        }
+        XCTAssertEqual(controller.state.predictionSnapshot?.buffer, "app")
+        XCTAssertEqual(controller.state.predictionSnapshot?.defaultSpaceAction, .literal)
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "l", keyCode: 0),
+            client: client
+        ))
+        XCTAssertEqual(controller.state.predictionSnapshot?.buffer, "appl")
+        XCTAssertEqual(
+            controller.state.predictionSnapshot?.defaultSpaceAction,
+            .prediction(index: 0)
+        )
+        XCTAssertEqual(controller.defaultSpacePrediction(), "apply")
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "i", keyCode: 0),
+            client: client
+        ))
+        XCTAssertEqual(controller.state.predictionSnapshot?.buffer, "appli")
+        XCTAssertEqual(controller.defaultSpacePrediction(), "application")
+
+        for expectedBuffer in ["appl", "app"] {
+            XCTAssertTrue(controller.handle(
+                try Self.keyDownEvent(
+                    characters: "\u{8}",
+                    keyCode: KeyCode.backspace.rawValue
+                ),
+                client: client
+            ))
+            XCTAssertEqual(controller.state.predictionSnapshot?.buffer, expectedBuffer)
+        }
+        XCTAssertEqual(controller.state.predictionSnapshot?.defaultSpaceAction, .literal)
+    }
+
+    func testTypingPublishesProviderResultAndSpaceIndicatorTogether() throws {
+        controller.spellPredictor = FixedPredictionProvider(
+            result: PredictionResult(
+                predictions: ["apply", "apple"],
+                defaultSpaceAction: .prediction(index: 0),
+                reason: .prefixCompletion
+            )
+        )
+        let event = try Self.keyDownEvent(characters: "a", keyCode: 0)
+
+        XCTAssertTrue(controller.handle(event, client: client))
+        XCTAssertEqual(
+            controller.state.predictionSnapshot,
+            PredictionSnapshot(
+                buffer: "a",
+                predictions: ["apply", "apple"],
+                defaultSpaceAction: .prediction(index: 0),
+                reason: .prefixCompletion
+            )
+        )
+        XCTAssertEqual(
+            CandidateWindow.shared.accessibilityCandidateLabels,
+            ["1, apply, Space accepts apply", "2, apple"]
+        )
     }
 
     func testEdgeKeyEventsUseInlineComposition() throws {
@@ -403,6 +704,34 @@ final class InputControllerEventRoutingTests: XCTestCase {
 /// actually invokes are implemented meaningfully; everything else returns neutral
 /// values. Deliberately not `@MainActor` so its methods satisfy the nonisolated
 /// ObjC protocol requirements under strict concurrency.
+@MainActor private final class MappingPredictionProvider: PredictionProviding {
+    let results: [String: PredictionResult]
+
+    init(results: [String: PredictionResult]) {
+        self.results = results
+    }
+
+    func predictionResult(prefix: String, limit _: Int) -> PredictionResult {
+        results[prefix] ?? PredictionResult(
+            predictions: [],
+            defaultSpaceAction: .literal,
+            reason: .fallbackLiteral
+        )
+    }
+}
+
+@MainActor private final class FixedPredictionProvider: PredictionProviding {
+    let result: PredictionResult
+
+    init(result: PredictionResult) {
+        self.result = result
+    }
+
+    func predictionResult(prefix _: String, limit _: Int) -> PredictionResult {
+        result
+    }
+}
+
 private final class RecordingTextInputClient: NSObject, IMKTextInput {
     var bundleIdentifierValue = "com.swifttype.tests.recording-client"
 
@@ -419,8 +748,8 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     }
 
     private func stringValue(_ string: Any) -> String {
-        if let s = string as? String { return s }
-        if let a = string as? NSAttributedString { return a.string }
+        if let plainString = string as? String { return plainString }
+        if let attributedString = string as? NSAttributedString { return attributedString.string }
         return String(describing: string)
     }
 

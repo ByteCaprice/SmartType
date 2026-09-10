@@ -24,6 +24,11 @@ import InputMethodKit
             return true
         }
 
+        if let prediction = controller.defaultSpacePrediction() {
+            controller.commitWord(prediction, client: client)
+            return true
+        }
+
         guard !state.compositionBuffer.isEmpty else {
             return false
         }

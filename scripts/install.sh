@@ -13,6 +13,8 @@ INPUT_METHODS_DIR="${HOME}/Library/Input Methods"
 DESTINATION="${INPUT_METHODS_DIR}/${APP_NAME}.app"
 STAGING="${INPUT_METHODS_DIR}/.${APP_NAME}.app.installing"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+# shellcheck source=release/pkg-scripts/install-common.sh
+source "${SCRIPT_DIR}/release/pkg-scripts/install-common.sh"
 
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
@@ -37,12 +39,11 @@ ditto "${APP_PATH}" "${STAGING}"
 codesign --verify --deep --strict "${STAGING}"
 
 killall "${APP_NAME}" 2>/dev/null || true
-if [[ -d "${DESTINATION}" ]]; then
-    rsync -a --delete "${STAGING}/" "${DESTINATION}/"
-    rm -rf "${STAGING}"
-else
-    mv "${STAGING}" "${DESTINATION}"
-fi
+swifttype_transactional_install \
+    "${STAGING}" \
+    "${DESTINATION}" \
+    "$(id -un):$(id -gn)"
+rm -rf "${STAGING}"
 touch "${INPUT_METHODS_DIR}"
 "${LSREGISTER}" -f -R -trusted "${DESTINATION}"
 killall TextInputMenuAgent 2>/dev/null || true

@@ -114,7 +114,7 @@ The order matters. Inserting first can leave a marked range alive briefly in som
 
 ### Transparent-prediction mode
 
-Chrome, Brave, Chromium, Arc, Opera, Vivaldi, and WeCom use transparent prediction. These clients can defer Caps Lock switching while persistent marked text is active.
+Chrome, Brave, Chromium, Arc, Opera, Vivaldi, WeCom, and DingTalk use transparent prediction. These clients can defer Caps Lock switching while persistent marked text is active. WeCom and DingTalk require a temporary `setMarkedText` followed immediately by `insertText` for direct commits; this synchronous handshake does not leave a marked range active.
 
 The invariant is:
 
@@ -127,16 +127,18 @@ Therefore transparent mode must:
 - Let Backspace reach the client while updating only the mirror.
 - Discard mirror state on Caps Lock, deactivation, stale selection, or application changes.
 - Never insert the complete mirror during Caps Lock or deactivation.
-- Use marked text only for the existing one-shot verified replacement operation, completed within the same key event.
+- Use marked text only for one-shot verified replacements or the audited WeCom/DingTalk direct-commit handshake, completed within the same key event.
 - Preserve the current consume/insert pairing for printable keys; changing only the return value can make Chromium redeliver a key and duplicate characters.
 
 Adding normal inline marked text to transparent mode commonly recreates the original Chromium switching failure.
 
-### Passthrough mode
+### Direct-input and passthrough modes
 
-Terminal applications and VS Code use passthrough mode. SwiftType returns `false` without starting composition so shell line editors and raw-mode applications receive keys unchanged.
+Native terminal applications use passthrough mode. SwiftType returns `false` without starting composition so shell line editors and raw-mode applications receive keys unchanged.
 
-Do not remove passthrough applications merely to make candidates appear. That can break terminal editing and is unrelated to input-source switching.
+VS Code uses no-prediction direct-input mode. Live testing found that Monaco drops printable IMK events returned as unhandled even though the integrated terminal accepts them. SwiftType therefore commits unmodified printable characters through a synchronous temporary marked phase, while Command/Control/Option combinations, Backspace, arrows, Tab, Escape, and Return still pass through. The same bundle ID serves both surfaces, so real-client regression testing must cover both.
+
+Do not remove native terminal applications from passthrough merely to make candidates appear. That can break terminal editing and is unrelated to input-source switching.
 
 ## 6. Per-Application Routing
 
@@ -145,20 +147,29 @@ Do not remove passthrough applications merely to make candidates appear. That ca
 1. Missing bundle identifier: inline.
 2. SwiftType's own process: passthrough.
 3. Microsoft Edge and `com.microsoft.edgemac.*`: inline.
-4. Known terminals and VS Code: passthrough.
-5. Known Chromium/CEF clients and explicit user additions: transparent prediction.
-6. Everything else: inline.
+4. VS Code: direct input.
+5. Known native terminals: passthrough.
+6. Known Chromium/CEF clients and explicit user additions: transparent prediction.
+7. Everything else: inline.
 
 The order is intentional. In particular:
 
 - TextEdit and Spotlight must remain on the default inline path.
 - Edge must remain inline even though it is Chromium-based; its fields require the inline behavior used by the current version.
-- Terminal and VS Code passthrough must win before broad Chromium-family detection.
+- Native-terminal passthrough and VS Code direct input must win before broad Chromium-family detection.
 - A broad substring rule must not accidentally classify unrelated native applications as transparent.
 
-When adding support for a new application, use `client.bundleIdentifier()` as the source of truth. Do not route using `NSWorkspace.frontmostApplication`; the frontmost application and the actual InputMethodKit client can differ.
+When adding support for a new application, use `client.bundleIdentifier()` as the source of truth. Do not route using `NSWorkspace.frontmostApplication`; the frontmost application and the actual InputMethodKit client can differ. InputMethodKit exposes no reliable public Electron/CEF/Qt engine flag, so framework guessing cannot safely replace per-client policy.
 
-Only add an application to transparent prediction after reproducing that persistent marked text blocks switching in that application and after testing insertion, correction, Space, Return, Backspace, and candidate selection.
+Three UserDefaults arrays provide a no-rebuild recovery path. Entries match an exact bundle ID or dotted helper descendant, never an arbitrary string prefix:
+
+| Key | Use |
+| --- | --- |
+| `transparentPredictionBundleIdentifiers` | Preserve Smart Space while avoiding persistent inline composition; configured entries also receive direct-commit priming. |
+| `directInputBundleIdentifiers` | Disable composition/candidates and reliably commit printable text while leaving commands host-owned. This overrides built-in terminal passthrough except for SwiftType itself. |
+| `markedTextPrimingBundleIdentifiers` | Keep the existing mode but temporarily mark direct commits before inserting them. |
+
+Only add an application to transparent prediction after reproducing a client failure and after testing insertion, correction, Space, Return, Backspace, and candidate selection. Use direct input as the conservative recovery when an app mixes terminal/editor surfaces or predictions are unsafe. Edge remains inline even if configured in these arrays.
 
 ## 7. Safe Change Procedure
 
@@ -251,7 +262,10 @@ Run this matrix after any change to `Info.plist`, event handling, composition li
 | Chrome or Brave | Transparent | Type `hel`, then press Caps Lock | Existing text remains exactly once and the source switches without persistent marked text. |
 | Edge | Inline | Type `hel`, then press Caps Lock | Inline text is committed once and the source switches when the event is delivered. |
 | Terminal | Passthrough | Type shell commands and switch sources | Keys remain unchanged; no candidate composition interferes. |
-| VS Code | Passthrough | Type in editor and integrated terminal | Keys remain unchanged and source switching still works. |
+| VS Code | Direct input | Type in editor and integrated terminal; test commands separately | Printable text appears once, no candidates; host-owned controls and source switching still work. |
+| Installed Electron clients | Inline unless configured | Test ChatGPT, Claude, Cherry Studio, OpenCode, and OpenChamber editors/chat fields | Text appears while typing; no dropped or duplicated input; switching works. |
+| Installed CEF clients | Configured or inline | Test WeCom, DingTalk, and NeteaseMusic text fields | Text appears once; configured candidates work; switching leaves no mark. |
+| Termius | Passthrough unless configured | Test terminal and settings/search fields | Both surfaces accept text and terminal shortcuts remain unchanged. |
 | Any supported app | Its configured mode | Switch away with `Control-Space` | SwiftType deactivates cleanly without losing or duplicating text. |
 | Any supported app | Its configured mode | Switch back to SwiftType | A new session starts with empty composition state. |
 
@@ -291,7 +305,7 @@ Reject or revise a switching-related change if any answer is "no":
 - Does `deactivateServer(_:)` preserve unfinished inline text without duplicating transparent text?
 - Do TextEdit and Spotlight remain inline?
 - Does Edge remain explicitly inline?
-- Do terminals and VS Code remain passthrough before broad heuristics?
+- Do native terminals remain passthrough and VS Code remain direct input before broad heuristics?
 - Are routing decisions based on the InputMethodKit client's bundle identifier?
 - Are all required `Info.plist` keys unchanged?
 - Were both automated tests and the real-application matrix completed?

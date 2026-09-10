@@ -86,8 +86,11 @@ info "Re-signed."
 
 # ── Step 5: Verify signing ────────────────────────────────────────────────────
 step "Verifying signature"
-codesign --verify --deep --strict "${APP_PATH}" && info "Signature verified." \
-    || die "Signature verification failed."
+if codesign --verify --deep --strict "${APP_PATH}"; then
+    info "Signature verified."
+else
+    die "Signature verification failed."
+fi
 
 # ── Step 6: Stage PKG payload ─────────────────────────────────────────────────
 step "Staging PKG payload"
@@ -106,70 +109,13 @@ info "Relocation disabled."
 # ── Step 8: Write installer scripts ───────────────────────────────────────────
 step "Writing installer scripts"
 
-# preinstall — remove any stale user-level installation before the payload lands.
-cat > "${PKG_SCRIPTS}/preinstall" <<'PREINSTALL'
-#!/usr/bin/env bash
-pkill -x SwiftType 2>/dev/null || true
-# Remove system-level installation and caches (preinstall runs as root)
-rm -rf "/Library/Input Methods/SwiftType.app"
-rm -rf "/Library/Caches/com.matthew.inputmethod.SwiftType"
-# Remove user-level installation and caches
-LOGGED_IN_USER=$(stat -f %Su /dev/console 2>/dev/null || true)
-if [[ -n "$LOGGED_IN_USER" && "$LOGGED_IN_USER" != "root" ]]; then
-    USER_HOME=$(dscl . -read "/Users/${LOGGED_IN_USER}" NFSHomeDirectory 2>/dev/null \
-                | awk 'NR==1{ print $NF }')
-    if [[ -n "$USER_HOME" ]]; then
-        rm -rf "${USER_HOME}/Library/Input Methods/SwiftType.app"
-        rm -rf "${USER_HOME}/Library/Caches/com.matthew.inputmethod.SwiftType"
-        rm -rf "${USER_HOME}/Library/Saved Application State/com.matthew.inputmethod.SwiftType.savedState"
-    fi
-fi
-# Remove stale /Applications symlink
-if [[ -L "/Applications/SwiftType.app" ]]; then
-    rm -f "/Applications/SwiftType.app"
-fi
-exit 0
-PREINSTALL
-chmod +x "${PKG_SCRIPTS}/preinstall"
-
-# postinstall — copy from the staging area into the logged-in user's
-# ~/Library/Input Methods/ and fix ownership.
-# Note: installd does not set $INSTALL_DEST for component packages, so
-# STAGING_DIR is hardcoded here to match --install-location in pkgbuild below.
-cat > "${PKG_SCRIPTS}/postinstall" <<'POSTINSTALL'
-#!/usr/bin/env bash
-STAGING_DIR="/private/tmp/swifttype_pkg_payload"
-
-LOGGED_IN_USER=$(stat -f %Su /dev/console 2>/dev/null || true)
-if [[ -z "$LOGGED_IN_USER" || "$LOGGED_IN_USER" == "root" ]]; then
-    echo "WARNING: No GUI user detected. SwiftType was not installed to ~/Library/Input Methods/." >&2
-    exit 0
-fi
-
-USER_HOME=$(dscl . -read "/Users/${LOGGED_IN_USER}" NFSHomeDirectory 2>/dev/null \
-            | awk 'NR==1{ print $NF }')
-if [[ -z "$USER_HOME" || ! -d "$USER_HOME" ]]; then
-    echo "ERROR: Cannot determine home directory for ${LOGGED_IN_USER}." >&2
-    exit 1
-fi
-
-INPUT_METHODS_DIR="${USER_HOME}/Library/Input Methods"
-DEST="${INPUT_METHODS_DIR}/SwiftType.app"
-
-mkdir -p "${INPUT_METHODS_DIR}"
-rm -rf "${DEST}"
-cp -R "${STAGING_DIR}/SwiftType.app" "${DEST}"
-chown -R "${LOGGED_IN_USER}:staff" "${DEST}"
-rm -rf "${STAGING_DIR}"
-
-echo "SwiftType installed to: ${DEST}"
-echo "Quit and reopen apps that were running during installation so they reconnect to SwiftType."
-
-# Create /Applications symlink so SwiftType appears in Finder and Launchpad
-ln -sf "${DEST}" "/Applications/SwiftType.app"
-echo "Symlink created: /Applications/SwiftType.app → ${DEST}"
-POSTINSTALL
-chmod +x "${PKG_SCRIPTS}/postinstall"
+# Keep the package scripts as checked-in, independently testable files. The
+# preinstall is deliberately non-destructive; postinstall validates and swaps
+# the user-level bundle transactionally.
+cp "${SCRIPT_DIR}/pkg-scripts/preinstall" "${PKG_SCRIPTS}/preinstall"
+cp "${SCRIPT_DIR}/pkg-scripts/postinstall" "${PKG_SCRIPTS}/postinstall"
+cp "${SCRIPT_DIR}/pkg-scripts/install-common.sh" "${PKG_SCRIPTS}/install-common.sh"
+chmod +x "${PKG_SCRIPTS}/preinstall" "${PKG_SCRIPTS}/postinstall"
 
 info "Scripts written."
 

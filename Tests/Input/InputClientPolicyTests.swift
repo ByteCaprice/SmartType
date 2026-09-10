@@ -29,6 +29,7 @@ final class InputClientPolicyTests: XCTestCase {
 
     func testNativeEditorsStayInline() {
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.TextEdit", defaults: defaults), .inline)
+        XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.Spotlight", defaults: defaults), .inline)
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.dt.Xcode", defaults: defaults), .inline)
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.Safari", defaults: defaults), .inline)
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: nil, defaults: defaults), .inline)
@@ -84,6 +85,10 @@ final class InputClientPolicyTests: XCTestCase {
             ],
             forKey: InputClientPolicy.extraTransparentPredictionBundleIDsKey
         )
+        defaults.set(
+            ["com.microsoft.edgemac"],
+            forKey: InputClientPolicy.extraDirectInputBundleIDsKey
+        )
 
         XCTAssertEqual(
             InputClientPolicy.mode(forBundleIdentifier: "com.microsoft.edgemac", defaults: defaults),
@@ -114,7 +119,6 @@ final class InputClientPolicyTests: XCTestCase {
             "com.youku.mac",
             "com.netease.163music",
             "com.anaconda.io",
-            "com.alibaba.DingTalkMac",
             "com.follow.clash",
             "io.github.clash-verge-rev.clash-verge-rev",
             "com.google.GeminiMacOS",
@@ -140,6 +144,10 @@ final class InputClientPolicyTests: XCTestCase {
             .transparentPrediction
         )
         XCTAssertEqual(
+            InputClientPolicy.mode(forBundleIdentifier: "com.alibaba.DingTalkMac", defaults: defaults),
+            .transparentPrediction
+        )
+        XCTAssertEqual(
             InputClientPolicy.mode(
                 forBundleIdentifier: "88L2Q4487U.com.tencent.wework.helper.gpu",
                 defaults: defaults
@@ -148,11 +156,42 @@ final class InputClientPolicyTests: XCTestCase {
         )
     }
 
-    func testPassthroughWinsOverChromiumHeuristic() {
+    func testVSCodeUsesDirectInputWhileTerminalsRemainPassthrough() {
         XCTAssertEqual(
             InputClientPolicy.mode(forBundleIdentifier: "com.microsoft.VSCode", defaults: defaults),
-            .passthrough
+            .directInput
         )
+        XCTAssertEqual(
+            InputClientPolicy.mode(
+                forBundleIdentifier: "com.microsoft.VSCode.helper.renderer",
+                defaults: defaults
+            ),
+            .directInput
+        )
+        XCTAssertEqual(
+            InputClientPolicy.mode(forBundleIdentifier: "com.microsoft.VSCodeClone", defaults: defaults),
+            .inline
+        )
+        XCTAssertFalse(InputClientPolicy.passthroughBundleIdentifiers.contains("com.microsoft.VSCode"))
+    }
+
+    func testAffectedElectronAndCEFClientsRequireMarkedTextPriming() {
+        let bundleIdentifiers = [
+            "com.microsoft.VSCode",
+            "com.tencent.WeWorkMac",
+            "88L2Q4487U.com.tencent.wework.helper.renderer",
+            "com.alibaba.DingTalkMac",
+            "com.alibaba.DingTalkMac.helper",
+        ]
+
+        for bundleIdentifier in bundleIdentifiers {
+            XCTAssertTrue(
+                InputClientPolicy.requiresMarkedTextForDirectCommit(bundleIdentifier),
+                bundleIdentifier
+            )
+        }
+        XCTAssertFalse(InputClientPolicy.requiresMarkedTextForDirectCommit("com.google.Chrome"))
+        XCTAssertFalse(InputClientPolicy.requiresMarkedTextForDirectCommit("com.apple.Terminal"))
     }
 
     func testUserDefaultsCanAddAFutureBrokenAppWithoutCodeChanges() {
@@ -168,6 +207,74 @@ final class InputClientPolicyTests: XCTestCase {
             InputClientPolicy.mode(forBundleIdentifier: "com.future.BrokenApp.helper", defaults: defaults),
             .transparentPrediction
         )
+        XCTAssertTrue(
+            InputClientPolicy.requiresMarkedTextForDirectCommit(
+                "com.future.BrokenApp.helper",
+                defaults: defaults
+            )
+        )
+        XCTAssertEqual(
+            InputClientPolicy.mode(forBundleIdentifier: "com.future.BrokenApplication", defaults: defaults),
+            .inline,
+            "configured IDs must match an exact ID or dotted descendant"
+        )
         XCTAssertEqual(InputClientPolicy.mode(forBundleIdentifier: "com.apple.TextEdit", defaults: defaults), .inline)
+    }
+
+    func testOwnProcessStaysPassthroughEvenWhenConfiguredForDirectInput() {
+        // The input method must never intercept keys for its own UI (settings search,
+        // candidate panels) even if a recovery entry accidentally names it.
+        let ownBundleIdentifier = Bundle.main.bundleIdentifier
+        XCTAssertNotNil(ownBundleIdentifier)
+        defaults.set(
+            [ownBundleIdentifier ?? ""],
+            forKey: InputClientPolicy.extraDirectInputBundleIDsKey
+        )
+
+        XCTAssertEqual(
+            InputClientPolicy.mode(
+                forBundleIdentifier: ownBundleIdentifier,
+                defaults: defaults
+            ),
+            .passthrough,
+            "the own-process exception must win over a configured direct-input entry"
+        )
+    }
+
+    func testUserDefaultsCanRecoverAClientWithDirectInputWithoutRebuilding() {
+        defaults.set(
+            ["com.termius-dmg.mac"],
+            forKey: InputClientPolicy.extraDirectInputBundleIDsKey
+        )
+
+        XCTAssertEqual(
+            InputClientPolicy.mode(forBundleIdentifier: "com.termius-dmg.mac", defaults: defaults),
+            .directInput,
+            "a configured direct-input client must override built-in passthrough"
+        )
+        XCTAssertTrue(
+            InputClientPolicy.requiresMarkedTextForDirectCommit(
+                "com.termius-dmg.mac",
+                defaults: defaults
+            )
+        )
+    }
+
+    func testStandalonePrimingConfigurationDoesNotChangeRoutingMode() {
+        defaults.set(
+            ["com.example.PrimingOnly"],
+            forKey: InputClientPolicy.extraMarkedTextPrimingBundleIDsKey
+        )
+
+        XCTAssertEqual(
+            InputClientPolicy.mode(forBundleIdentifier: "com.example.PrimingOnly", defaults: defaults),
+            .inline
+        )
+        XCTAssertTrue(
+            InputClientPolicy.requiresMarkedTextForDirectCommit(
+                "com.example.PrimingOnly.helper",
+                defaults: defaults
+            )
+        )
     }
 }

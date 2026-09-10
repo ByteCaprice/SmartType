@@ -5,11 +5,41 @@ import InputMethodKit
 extension InputController {
     // MARK: - Composition
 
-    func commitCompositionBuffer(client: any IMKTextInput) {
-        if state.mirrorsClientText
-            || Self.usesTransparentPrediction(bundleIdentifier: client.bundleIdentifier())
+    /// Commits text through a short-lived marked phase for clients that reject
+    /// direct `insertText` calls without one. The subsequent insert clears the mark
+    /// synchronously, so no composition remains to block input-source switching.
+    func insertTextForCompatibility(
+        _ text: String,
+        replacing replacementRange: NSRange = Constants.replacementNotFound,
+        forceMarkedText: Bool = false,
+        client: any IMKTextInput,
+    ) {
+        if !text.isEmpty,
+           forceMarkedText
+            || InputClientPolicy.requiresMarkedTextForDirectCommit(client.bundleIdentifier())
         {
+            let attrString = NSAttributedString(string: text, attributes: Self.markedTextAttributes)
+            client.setMarkedText(
+                attrString,
+                selectionRange: NSRange(location: (text as NSString).length, length: 0),
+                replacementRange: replacementRange,
+            )
+            client.insertText(text, replacementRange: Constants.replacementNotFound)
+            return
+        }
+
+        client.insertText(text, replacementRange: replacementRange)
+    }
+
+    func commitCompositionBuffer(client: any IMKTextInput) {
+        let mode = InputClientPolicy.mode(forBundleIdentifier: client.bundleIdentifier())
+        if state.mirrorsClientText || mode == .transparentPrediction {
             discardMirroredComposition()
+            return
+        }
+        if mode == .passthrough || mode == .directInput {
+            state.compositionBuffer = ""
+            cancelPredictions()
             return
         }
 
@@ -30,10 +60,16 @@ extension InputController {
     }
 
     func commitCompositionForLanguageSwitch(client: any IMKTextInput) {
-        if state.mirrorsClientText
-            || Self.usesTransparentPrediction(bundleIdentifier: client.bundleIdentifier())
-        {
+        let mode = InputClientPolicy.mode(forBundleIdentifier: client.bundleIdentifier())
+        if state.mirrorsClientText || mode == .transparentPrediction {
             discardMirroredComposition()
+            return
+        }
+        // Match the lifecycle commit path: these clients never compose locally.
+        // Do not write a leaked buffer or create a mark while macOS switches sources.
+        if mode == .passthrough || mode == .directInput {
+            state.compositionBuffer = ""
+            cancelPredictions()
             return
         }
 

@@ -1,195 +1,383 @@
-# SwiftType 工作交接
+# SwiftType Developer Handoff
 
-更新时间：2026-09-04（transparent-prediction 已实现并通过全部测试，尚未安装验证）
+Last updated: 2026-09-09
 
-## 一、当前目标
+This document supersedes the previous 2026-09-04 handoff. It describes the current source, the local troubleshooting outcome, pending changes, and the recommended next work. Historical observations are explicitly labeled; do not mistake them for fresh checks or current failures.
 
-1. 让 Microsoft Edge、企业微信等 Chromium/CEF 客户端在输入过程中也能用中/英（Caps Lock）键切换输入法，而不是只切换大小写。
-2. 让系统输入源切换 HUD 显示新的 `S` 图标，而不是旧蓝色双箭头。
+## 1. Start Here
 
-## 二、当前版本状态
+SwiftType is an English-only, offline macOS input method built with Swift 6, AppKit, InputMethodKit, and the system spell checker. It offers word completions/corrections through a floating candidate panel. It has no network prediction dependency.
 
-- 安装位置：`~/Library/Input Methods/SwiftType.app`
-- Bundle ID：`com.matthew.inputmethod.SwiftType`
-- 已安装版本：`20260904085803`（不含本次 transparent-prediction 改动）
-- 已确认运行进程的可执行文件来自上述安装目录，且启动时间晚于安装时间，不是残留旧进程。
-- 安装包为 Universal `arm64 + x86_64`，签名验证通过。
-- `CapsLockDelayOverride` 已恢复系统默认值 `75`。
-- **本次工作区改动尚未构建安装**，需要重新运行 `scripts/install.sh`。
+**Current user-visible status:** after the installed guide-compliant build encountered a stale `imklaunchagent` connection refusal, restarting macOS restored normal input and Caps Lock language switching in TextEdit and Spotlight. SwiftType is operating normally. Preserve this known-good routing and input-source metadata.
 
-## 三、已确认根因（为什么 Edge/企业微信不切换）
+**Current assignment:** validate the implementation of [SMART_SPACE_IMPLEMENTATION_GUIDE.md](./SMART_SPACE_IMPLEMENTATION_GUIDE.md) on the `smart-space` branch while preserving the completed improvement-review work. Smart Space retains exact-word evidence, prefers strict prefix completions over corrections, and gives Space a visible default action without creating an explicit candidate selection. The latest full isolated suite passes 596 tests (585 existing plus 11 new compatibility regressions). The client-compatibility patch for dropped input in VS Code Monaco, WeCom 5.0.10, and DingTalk 8.5.0 is unit-verified and installed for live validation as build `20260909100351`, with a valid signature and universal `x86_64 arm64` executable matching the current Release build. The user subsequently confirmed that typing works well; the installed process and signature were rechecked during the reliability audit. This is general user confirmation, not a completed per-application acceptance matrix. The user then authorized installation of the defensive Caps Lock stale-buffer fix: build `20260909103324` is now installed, signature-valid and universal, and matches the new Release executable. No SwiftType process was observed immediately after replacement; reopen clients and select SwiftType to reconnect. Real-client, VoiceOver, positioning, and latency checks remain necessary.
 
-用 45 秒实时日志采样（subsystem `com.matthew.inputmethod.SwiftType`，category `InputController`），用户在 Edge 中多次按中/英键，日志中完全没有 `Caps Lock event received`。结论：
+### Reliability audit — 2026-09-09
 
-- Caps Lock `flagsChanged` 事件在进入 InputMethodKit controller 之前就被 Chromium/CEF 截走。
-- 问题不在 SwiftType 的 Caps Lock 回调或 composition 提交代码；继续修改 `handle(_:client:)` 的 Caps Lock 分支对这些应用无效。
-- 真正的机制（来自 Chromium 源码 `render_widget_host_view_cocoa.mm`）：marked text 活跃时，AppKit/Chromium 会推迟输入源切换。SwiftType 之前的 inline 模式（`setMarkedText` 显示下划线 preedit）正是让切换被推迟的原因。
-- Chromium 不尊重 IMK `handle()` 的布尔返回值：如果事件前后都没有 marked text，且输入法没有在同一 keyDown 中插入多字符文本，原始按键仍会被转发给网页（重复字母、重复 Backspace 的来源，见 squirrel#906、fcitx5-macos 的 dummy preedit workaround）。
+- Independent delivery and candidate/state reviews found no reproduced main-path dropped-input defect. Host delivery remains a live-only boundary; do not add speculative insertion retries that could duplicate text.
+- Added a no-write passthrough/direct-input guard to `commitCompositionForLanguageSwitch`, consistent with lifecycle commits. It prevents stale composition from being inserted on Caps Lock if incompatible state reaches such a client; normal typing does not produce this state. New regression tests cover both modes, activation/deactivation, direct-input commands and primed literal Space.
+- Authoritatively verified 596 passed, zero failed/skipped in `/tmp/SwiftTypeTesterFull-C8149C5A-AAA1-4137-96E4-BE5ACEA02088.xcresult`; matching full log uses the same basename with `.log`. Focused tests: `/tmp/SwiftTypeTesterFocused2.xcresult` (11 passed).
+- Installer harness 10/10, diagnostic harness, shell syntax, whitespace, changed-Swift LSP checks passed; session diagnostics contain hints only. Unsigned universal Release built in `/tmp/SwiftTypeReliabilityRelease.As9Zuu`; log `/tmp/swifttype-reliability-release.log`. No installation or input-service restart was performed. Xcode did emit LaunchServices registration for temporary products despite the disable request.
+- Residual checks: VS Code editor versus raw-mode integrated terminal, Option/dead keys, rapid focus/source switching, sleep/wake, and newly updated apps. Finish a composition and close the affected host before changing recovery routing preferences; policy is read dynamically, not pinned to a session.
+- Following the audit, the user authorized installation of the Caps Lock hardening. Build `20260909103324` replaced `20260909100351`; signature, `x86_64 arm64` architectures, and installed/Release executable equality passed. Install log: `/tmp/swifttype-caps-lock-hardening-install.log`. The install script stopped SwiftType and refreshed TextInputMenuAgent/TextInputSwitcher; no broad IMK service restart was performed. The compatibility changes and audit are included in the work being merged into `main`.
 
-本机应用信息：
+Recommended first steps for the next developer:
 
-- Microsoft Edge：`com.microsoft.edgemac`，Chromium 152。
-- 企业微信：`com.tencent.WeWorkMac`，内嵌 CEF 138 + FlutterMacOS，helper 进程前缀 `88L2Q4487U.com.tencent.wework`。
+1. Read this document and `IMPROVEMENT_REVIEW.md`.
+2. Check `git status`, inspect the installer-hardening history, and preserve all existing work.
+3. Choose a small, agreed improvement, preferably installation safety or documentation/UX clarity before speculative optimization.
+4. Read the relevant implementation and tests; preserve client-specific input behavior.
+5. Run targeted/full verification as appropriate, recording fresh results and any generated input-method bundles.
+6. Do not reinstall or reset system services just to read the project. The user's current setup works.
 
-## 四、解决方案架构
+## 2. Repository and Worktree
 
-### 4.1 三种客户端模式（`Input/InputClientPolicy.swift`）
+| Item | State verified while preparing this handoff |
+| --- | --- |
+| Workspace | Local checkout (personal home paths redacted) |
+| Branch | `main` |
+| Current baseline | Smart Space, client compatibility, and Caps Lock hardening; consult `git log` for current hashes after the privacy rewrite |
+| Earlier implementation commits | `02f45be` - prediction/candidate reliability; `45aa8ba` - English-only input, Caps Lock switching, and per-app modes |
+| Private tracking branch | `github/main`; the feature work is being merged for publication preparation |
+| Private working remote | `github` = `https://github.com/ByteCaprice/SmartType.git` |
+| Public upstream | `origin` = `https://github.com/mgxv/SwiftType.git` |
 
-参照 hallelujahIM 的 `TerminalPassthrough`（独立、纯 Foundation、可单测的策略类），所有按键路由先经过 `InputClientPolicy.mode(forBundleIdentifier:)` 判定：
+Always refresh remote state before publishing; branch information in documentation becomes historical immediately. Never accidentally push private work to `origin`. The remote switching guide was copied into the worktree as a specification only; remote source did not replace local `main`.
 
-| 模式 | 行为 | 适用应用 |
-|---|---|---|
-| `.passthrough` | 所有按键原样返回 `false`，不启动 composition | 终端（Terminal、iTerm2、Ghostty、WezTerm、kitty、Alacritty、Warp、Hyper）、VS Code、SwiftType 自身窗口 |
-| `.transparentPrediction` | 字母由应用自己写入，SwiftType 只维护镜像 buffer 提供候选，全程无 marked text | Chromium/CEF 家族（Edge、Chrome、Brave、Vivaldi、Opera、企业微信等） |
-| `.inline` | 原有行为：`setMarkedText` 下划线 preedit + 候选 | 其余所有原生应用（TextEdit、Safari、Xcode 等） |
+The installation, prediction, compatibility, and UI improvements below are included in the feature work being merged into `main`. Historical hashes in this document predate the privacy rewrite and must not be treated as current references. SmartType is the repository/README name only; application identifiers and code remain unchanged. Only the repository owner's local commit identities and personal home paths are anonymized; upstream authorship is preserved. The repository remains private pending a separate publication decision.
 
-**判定优先级**（重要：passthrough 优先于 Chromium 启发式，所以 VS Code 的 Electron 身份不会把它拉进透明预测）：
+## 3. Installed Application and Local Environment
 
-1. bundle ID 为空 → `.inline`
-2. 等于 SwiftType 自身 bundle ID → `.passthrough`
-3. 命中 `passthroughBundleIdentifiers` → `.passthrough`
-4. 命中透明预测（见下）→ `.transparentPrediction`
-5. 其他 → `.inline`
+| Item | Value / evidence status |
+| --- | --- |
+| Intended installation | `~/Library/Input Methods/SwiftType.app` |
+| Bundle and input-source ID | `com.matthew.inputmethod.SwiftType` |
+| Installed short version | `1.0`, reread from installed `Info.plist` for this handoff |
+| Installed build version | `20260907020122`, reread for this handoff |
+| Connection name | `com.matthew.inputmethod.SwiftType_Connection` |
+| Controller class | `InputController` |
+| Minimum supported macOS | `13.0` |
+| Architectures/signature | Universal `x86_64 arm64`, signature valid during preceding installation verification; not rechecked in this documentation task |
+| Local machine | Previously observed MacBook Air `Mac17,3`, Apple M5 |
+| Local macOS | Previously observed `26.6.2 (25G83)` |
 
-**透明预测命中规则**（按顺序）：
+The installed app was built/installed after syncing `02f45be` in the preceding session. Do not assume future source or script edits are automatically installed. About displays the short version, so the build number is useful for distinguishing local installations.
 
-1. UserDefaults 数组 `transparentPredictionBundleIdentifiers` 中的条目（精确匹配或前缀匹配）——**以后新应用坏掉，无需改代码**：
-   ```bash
-   defaults write com.matthew.inputmethod.SwiftType transparentPredictionBundleIdentifiers -array-add 'com.foo.bar'
-   ```
-2. 内置已知 ID：`com.microsoft.edgemac`、`com.tencent.WeWorkMac`、`com.google.Chrome`、`org.chromium.Chromium`、`com.brave.Browser`、`company.thebrowser.Browser`、`com.operasoftware.Opera`、`com.vivaldi.Vivaldi`
-3. 内置前缀：`88L2Q4487U.com.tencent.wework`、`com.microsoft.edgemac`、`com.google.Chrome`、`com.brave.Browser`（覆盖 Canary/Dev/helper 变体）
-4. 启发式：bundle ID 小写后包含 `chrome` / `chromium` / `edgemac` / `brave.browser` / `vivaldi` / `operasoftware.opera`
+Input-source metadata that must remain intact:
 
-`InputController.terminalBundleIdentifiers` 现在只是 `InputClientPolicy.passthroughBundleIdentifiers` 的别名，旧调用点不变；`InputController.usesTransparentPrediction(bundleIdentifier:)` 是对 policy 的薄封装。
+```text
+TICapsLockLanguageSwitchCapable = true
+TISIntendedLanguage = en
+tsInputMethodCharacterRepertoireKey = [Latn]
+TISInputSourceID = com.matthew.inputmethod.SwiftType
+TISIconIsTemplate = true
+tsInputMethodIconFileKey = SwiftTypeInputSourceIcon.png
+```
 
-### 4.2 透明预测按键语义（`Input/Controller/InputControllerTransparentPrediction.swift`）
+The input-source icon is `Resources/SwiftTypeInputSourceIcon.png`, a 32x32 template `S`. The app icon and the status-menu display are separate: the status item currently uses text `EN`. A bundled `SwiftTypeMenuIcon.png` is not the same as the TIS icon.
 
-核心思想：**客户端拥有字面文本，SwiftType 只维护镜像**。每个 keyDown 顶部先做 stale 检查，任何时刻都不调用 `setMarkedText`（除了下述一次性 prime），所以系统没有 composition 可阻塞 Caps Lock 切换。
+## 4. Architecture Map
 
-| 事件 | 行为 | 返回值 |
-|---|---|---|
-| 字母（含 Shift） | 首字母时记录 `compositionBaseline`（`selectedRange()`）和 `compositionClientBundleID`；追加到镜像 buffer，更新候选窗。**不写客户端** | `false`（客户端自己写入） |
-| 撇号 `'`/`’`（buffer 非空） | 同字母，保持 "don't" 在一个 buffer | `false` |
-| Backspace | 镜像 buffer 减一、`expectedCursor` 回退；buffer 空则整体丢弃。**不替客户端删除** | `false`（客户端自己删除，天然不会双删） |
-| Space（候选窗可见、选中候选） | 插入 suffix（候选去掉已输入前缀）+ 空格，`NSNotFound` range | `true` |
-| Space（候选窗可见、literal 选中） | 丢弃镜像（字母已在 field 里，空格由客户端自己打），置 `didAutoInsertTrailingSpace` | `false` |
-| Space（无候选） | 透传 | `false` |
-| Return | 同 Space，但无尾随空格；literal 时透传（表单提交不受影响） | `true` / `false` |
-| 数字 1–7（候选窗可见） | 对应槽位选词：literal 槽 → `commitTransparentWord(buffer)`；预测槽 → `currentPredictions[predIdx]` 加大小写保留后提交；空槽位返回 `false`（数字透传，不吞键） | `true` / `false` |
-| Escape / 方向键 / Tab | 丢弃镜像 buffer 和候选窗，透传（Chromium 会把"消费但不写"的键重投递，所以不消费） | `false` |
-| Cmd/Ctrl/Option 组合 | 丢弃镜像，透传 | `false` |
-| 多字符 `event.characters`（死键等） | 丢弃镜像，透传 | `false` |
-| **Caps Lock `flagsChanged`**（在 `InputControllerKeyHandling.swift` 的 handle 入口） | **只丢弃镜像 buffer，不 insert、不 setMarkedText** —— 字母已在 field 里，无需 flush，切换即时且完全交给系统 | `false` |
+| Area | Main files and responsibilities |
+| --- | --- |
+| Startup | `main.swift`, `App/AppDelegate.swift`, `App/NSManualApplication.swift`: application and IMK server setup |
+| Status menu | `App/StatusBarController.swift`: `EN`, Settings, Quit |
+| Controller | `Input/Controller/InputController.swift`: per-controller state, lazy predictor, pending refresh task |
+| Client policy | `Input/InputClientPolicy.swift`: pure/testable bundle-ID routing |
+| Key events | `Input/Controller/InputControllerKeyHandling.swift`: keyDown/flagsChanged, inline input, navigation, auto-space checks |
+| Transparent input | `Input/Controller/InputControllerTransparentPrediction.swift`: immediate printable insertion, mirrored buffer, deferred predictions, verified replacement |
+| Composition | `Input/Controller/InputControllerComposition.swift`: literal/candidate commits and marked text |
+| Lifecycle | `Input/Controller/InputControllerLifecycle.swift`: activation/deactivation, commit/cancel callbacks |
+| Cancellation | `Input/Controller/InputControllerStateManagement.swift`: cancel task, clear predictions, hide panel |
+| English behavior | `Input/KeyHandling/LatinKeyHandler.swift`, `Rules/Conformers/EnglishRules.swift`: candidate commits, capitalization, punctuation/contractions |
+| State | `Input/State/InputState.swift`, `Input/State/GridCandidateState.swift`: input state and candidate navigation |
+| Prediction | `Prediction/SpellCheckPredictor.swift`: `en_US` correction, prefix completions, fuzzy guesses |
+| Candidate UI | `UI/Candidate/CandidateWindow.swift`, `CandidateView.swift`: shared nonactivating panel, preallocated cells, selection, positioning |
+| Settings | `UI/Settings/SettingsWindowController*.swift`: Appearance, About, uninstall |
+| Theme | `UI/Theme/ThemeManager.swift`, `Theme.swift`, `NSColorHex.swift`: preferences, semantic defaults, customization |
+| Logging | `App/Log.swift`; privacy behavior covered by `Tests/App/PrivacyLoggingTests.swift` |
+| Distribution | `scripts/install.sh`, `scripts/release/release.sh` |
 
-**选词提交的三条路径**（`commitTransparentWord`）：
+The application uses main-actor-isolated state. IMK callback overrides use `MainActor.assumeIsolated` at the callback boundary. Do not casually move AppKit/IMK work into detached tasks. The candidate window is process-wide, while composition state belongs to each controller.
 
-1. 候选是 buffer 的大/小写无关前缀且 suffix 长度 > 1：只 `insertText(suffix, NSNotFound)` —— Chromium 的 deferred/masked 路径，不会泄漏原始按键。
-2. 纠正型候选（如 `teh`→`the`，suffix ≤ 1 或非前缀）：先 `verifiedTypedRegion`（用 `attributedSubstring` 验证 baseline 起始的已输入区域与 buffer 大小写无关一致），一致则 `primeAndCommit` —— 在**同一个 keyDown 内**先 `setMarkedText` 覆盖已输入区域再 `insertText`。marked 阶段只存在于这一次同步事件中，事件结束后无 composition，不影响 Caps Lock（对齐 Squirrel 的 `force_marked_text_for_direct_commit`）。
-3. 验证失败或 `selectedRange` 为 `NSNotFound`：退化为仅插入 suffix，或放弃提交（绝不在未验证位置覆盖文本）。
+## 5. Current Client Routing
 
-**Stale 检测**（每次 keyDown 顶部、buffer 非空时）：bundle ID 变化、selection 变为多字符（用户选中文本）、`selectedRange().location != expectedCursor`（用户移动了光标）→ 静默丢弃镜像 buffer 和候选窗，本次按键照常处理。因为 SwiftType 从未写入客户端，stale 清理永远安全，没有 marked-range 回滚问题。
+Read `InputClientPolicy.mode`, not just `usesTransparentPrediction`, when determining the effective mode. The controller's wrapper calls `mode`, preserving its exceptions.
 
-### 4.3 生命周期保护（`InputControllerLifecycle.swift` / `InputControllerComposition.swift`）
+Routing priority:
 
-镜像模式下 **lifecycle 绝不能把 buffer 再插入一遍**（字母已在 field 里，插入即重复）：
+1. Missing/empty bundle ID: inline.
+2. The app's own bundle ID: passthrough.
+3. `com.microsoft.edgemac` or a dotted descendant (`com.microsoft.edgemac.*`): inline.
+4. VS Code or a custom direct-input entry: direct compatibility input.
+5. Known native terminal IDs: passthrough.
+6. Transparent custom entries, known IDs/prefixes, or Chromium-family heuristic: transparent prediction.
+7. Everything else: inline.
 
-- `commitCompositionBuffer` / `commitCompositionForLanguageSwitch`：检测 `state.mirrorsClientText` 或客户端属于透明预测 → `discardMirroredComposition()`（只清状态），否则走原 inline commit。
-- `deactivateServer` / `commitComposition` / `cancelComposition` 均经由上述入口，自动安全。
-- `composedString` / `originalString` 在镜像模式下返回 `""`，确保系统永远看不到 composition。
-- `discardMirroredComposition()` 是唯一清镜像入口：buffer、`mirrorsClientText`、`compositionBaseline`、`expectedCursor`、`compositionClientBundleID`、候选窗全部清空。
+| Mode | Current examples | Behavior |
+| --- | --- | --- |
+| Inline | TextEdit, Safari, Xcode, Edge and its dotted bundle descendants | Marked-text composition and synchronous predictions |
+| Passthrough | Terminal, iTerm2, Ghostty, WezTerm, kitty, Alacritty, Warp, Hyper, Termius, own UI | Keydown returns false; no composition or suggestions |
+| Direct input | VS Code | No suggestions; temporary mark-and-commit for printable text; commands/navigation remain host-owned |
+| Transparent prediction | Chrome, Chromium, Brave, Arc, Opera, Vivaldi, WeCom/DingTalk and known helpers | No persistent marked text; mirrored state and delayed predictions; affected CEF clients use temporary mark-and-commit |
 
-### 4.4 状态字段（`Input/State/InputState.swift` 新增）
+**Important correction from the old handoff:** Edge is deliberately inline in current code. Do not move it back to transparent mode based on the old incident narrative. The README explains that its fields drop modeless input.
 
-- `mirrorsClientText: Bool` —— 当前 buffer 是镜像而非真实 composition
-- `compositionBaseline: NSRange?` —— 首字母时的光标位置，用于纠正型替换的 typed region
-- `expectedCursor: Int?` —— 预期光标（UTF-16 计数），用于 stale 检测；客户端返回 `NSNotFound` 时为 nil，stale 光标检查跳过
-- `compositionClientBundleID: String?` —— 首字母时的 bundle ID
-- `reset()` 清空以上全部字段
+Compatibility can be changed without rebuilding through three UserDefaults arrays: `transparentPredictionBundleIdentifiers`, `directInputBundleIdentifiers`, and `markedTextPrimingBundleIdentifiers`. Entries match exact IDs or dotted helper descendants. A custom transparent entry automatically receives marked-text priming; custom direct input overrides built-in terminal passthrough. Edge and SwiftType's own process remain hard exceptions. Known helpers include `88L2Q4487U.com.tencent.wework`; the Chromium heuristic still checks substrings such as `chrome` and `chromium`.
 
-### 4.5 与 inline 路径的隔离
+Examples for a newly problematic app:
 
-`handleKey` 中 `.inline` 分支原样进入原有逻辑；透明预测是独立扩展文件 + 独立私有方法，不共享 `handleCharacterInput`/`handleBackspace` 等可变状态的实现，避免两条路径互相污染。普通应用行为完全不变（`InputControllerEventRoutingTests` 原有断言全部保持通过）。
+```bash
+defaults write com.matthew.inputmethod.SwiftType transparentPredictionBundleIdentifiers -array-add 'com.example.NewApp'
+defaults write com.matthew.inputmethod.SwiftType directInputBundleIdentifiers -array-add 'com.example.NewApp'
+defaults write com.matthew.inputmethod.SwiftType markedTextPrimingBundleIdentifiers -array-add 'com.example.NewApp'
+```
 
-## 五、测试状态
+Choose one based on the documented behavior; do not write all three casually. Quit and reopen the affected app after changing policy. Do not add a per-app menu based on `NSWorkspace.frontmostApplication`, because it may not identify the actual IMK client.
 
-全部通过（`xcodebuild -scheme SwiftType -configuration Debug test`，TEST SUCCEEDED，全量 491 个用例，policy 重构后复验）：
+## 6. Key Handling and Text Safety
 
-- `Tests/Input/InputClientPolicyTests.swift`（新增）：三种模式判定、passthrough 优先级、Chromium 家族免逐一列举、企业微信 helper 前缀、UserDefaults 动态追加坏应用、TextEdit/Safari/Xcode 保持 inline。
-- `Tests/Input/InputControllerTransparentPredictionTests.swift`（新增）：字母透传无 marked text、WeCom 镜像、Backspace 同步、Caps Lock 只丢镜像不插入、deactivate 不重复插入、stale 光标后重新起词、literal space 透传、数字选词只插 suffix、纠正型一次性 prime+commit（验证 marked range 覆盖已输入区域）、Cmd 组合丢弃、方向键丢弃。
-- `Tests/Input/InputControllerEventRoutingTests.swift`：原 Caps Lock/终端/VS Code 行为回归全部保持。
-- `Tests/Input/InputControllerTests.swift`：`InputState.reset()` 清空全部新字段的断言已补。
-- `InputState.swift` 因新增 `NSRange` 需 `import Foundation`；`composedString` 的 `MainActor.assumeIsolated` 闭包需显式标注 `() -> String`（否则推断为 Any 违反 Sendable）。
+### Inline Mode
 
-已知无害警告：测试 helper 中 MainActor 隔离警告（与现有测试文件一致的模式）。
+- Letters and continuation apostrophes accumulate in `compositionBuffer`, update marked text, and immediately fetch/render predictions.
+- Backspace edits composition and is consumed when the buffer is nonempty; otherwise it passes through.
+- Digits choose a populated visible candidate slot when Shift is not held. Empty slots commit the literal composition and let the digit through.
+- Space commits an explicitly selected candidate first. Otherwise it accepts a fresh visible Smart Space candidate or preserves the literal buffer, with a trailing space. With no composition/selection, it passes through.
+- Return while the panel is visible commits the selected candidate or literal buffer without a trailing space and is consumed. With the panel hidden, any buffer is committed and Return passes through.
+- Escape commits literal text and dismisses; it is consumed only if composition/panel content existed.
+- Arrows/Tab navigate when the panel is visible. Otherwise they commit composition and pass through.
+- Command/Control/Option combinations commit composition and pass through.
+- Language switching clears marked text synchronously, commits pending literal text, and leaves the switch event to macOS.
 
-## 六、下一步（按顺序）
+### Transparent Mode
 
-1. **构建安装**：`sh scripts/install.sh`（Release、原位 rsync、lsregister、重启 `TextInputMenuAgent`/`TextInputSwitcher`）。
-2. **手工验收**（只能用户在 GUI 做）：
-   - Edge 和企业微信：输入半个单词时按中/英键 → 输入源立即切换，已输入字母保留在 field 中。
-   - Space / Return / 数字选词 → 只产生一次完整单词（suffix 不重复、不双空格）。
-   - Backspace → 每次只删一个字符，候选窗同步收缩。
-   - 移动光标或选择文本后再按键 → 旧候选被静默清除，新输入从新位置起词。
-   - 若某 CEF 客户端（如企业微信部分 Flutter 输入框）`selectedRange` 行为异常 → 观察是否出现选词不生效；不影响 Caps Lock 切换本身。
-3. **若某客户端透明预测仍不稳定**：最终 fallback 是把它加入 passthrough 列表（完全透传、无候选），不要用全局事件监听或强制切换输入源。
-4. **HUD 旧双箭头图标**：注销/重新登录后复测（`CursorUIViewService` 缓存可能只在登录会话重建时刷新）。注意：`xcodebuild test` 每次都会 `lsregister` DerivedData 的 Debug 包，可能继续污染图标缓存；测试后应重装 Release 或直接注销重登。磁盘上还有 `build/Debug/SwiftType.app`、`build/Release/SwiftType.app` 和 DerivedData 的旧构建（mdfind 确认），如注销后 HUD 仍错，安全删除这些旧包再复测。受"不使用 `lsregister -u`"约束，未注销旧注册。
+The previous handoff said letters passed through without any client write. That is no longer the implementation. Current printable handling commits text and returns true, while maintaining a mirror and leaving no persistent marked text. WeCom and DingTalk require `setMarkedText(text)` immediately followed by `insertText(text)`; other transparent clients retain direct insertion.
 
-## 七、约束与决定（不要违反）
+| Event | Current behavior |
+| --- | --- |
+| Letter or continuation apostrophe | Append mirror, insert the character, schedule prediction refresh, consume |
+| Ordinary number/punctuation/symbol not handled as selection | Discard mirror, insert character, consume |
+| Backspace | Update mirror and expected cursor, schedule refresh or clear; return false so host deletes once |
+| Space with a fresh visible Smart Space candidate | Insert a safe suffix or verified replacement; otherwise fall back to literal space |
+| Space without a successful candidate commit | Discard mirror, explicitly insert space; record trailing-space state when applicable |
+| Return without selection | Discard mirror and pass through; retain normal host submit/newline behavior |
+| Digit on a populated slot | Attempt safe candidate commit; on failure fall back to ordinary character handling |
+| Escape/arrows/Tab | Discard mirror and pass through; do not implement inline candidate navigation here |
+| Command/Control/Option | Discard mirror and pass through |
+| Multi-character/dead-key input | Discard mirror when applicable and pass through |
+| Caps Lock flagsChanged | Discard mirror only, no duplicate buffer insertion; return false |
 
-- 不处理浏览器 Web CLI 特例。
-- 不增加 per-app 菜单开关（用 UserDefaults 数组代替，见 4.1）。
-- VS Code 整个应用保持 passthrough（含内置终端）。
-- 不使用 `TISEnableInputSource`、`TISDisableInputSource`、`TISSelectInputSource`、`lsregister -u` 强制修改系统输入源/LaunchServices 状态。
-- 不实现"消费字母但不设 marked text"的普通 no-inline：Chromium 会把原始按键重投递给网页，导致 "hheell" 双写和双删（Chromium gate：`_hasMarkedText || _textToBeInserted.length() > 1` 才 mask）。
-- 不使用 `NSWorkspace.frontmostApplication` 猜测客户端；以 `client.bundleIdentifier()` 为唯一事实来源（hallelujah 同款结论：frontmost 猜测曾导致非目标应用被误透传）。
-- 输入源元数据必须保持 Latin 英文：`TICapsLockLanguageSwitchCapable = true`、`TISIntendedLanguage = en`、`tsInputMethodCharacterRepertoireKey = ["Latn"]`、`tsInputMethodIconFileKey = SwiftTypeInputSourceIcon.png`（`Tests/App/ConstantsTests.swift` 有断言）。
-- 工作区包含大量此前未提交的改动（英文专用化、删除 KenLM/多语言/SettingsManager、隐私日志、纵向候选窗等），不得误删或回滚无关修改。
+At the start of a nonempty mirrored keydown, stale detection checks bundle ID, nonempty selection, and expected cursor location. `NSNotFound` selection degrades conservatively. The baseline/expected cursor use UTF-16 lengths where client ranges require them.
 
-## 八、改动文件清单（本次 transparent-prediction 相关）
+Transparent candidate commit has two successful paths:
 
-新增：
+1. If the chosen word has the exact-case typed prefix and the suffix including optional space has UTF-16 length greater than one, insert only that suffix.
+2. Otherwise require document-access support and a verified substring matching the typed buffer case-insensitively. In one synchronous event, set marked text over that verified range and immediately insert the committed text, ending marked composition.
 
-- `Input/InputClientPolicy.swift` —— 三模式策略 + Chromium 启发式 + UserDefaults 扩展
-- `Input/Controller/InputControllerTransparentPrediction.swift` —— 镜像预测全部按键语义
-- `Tests/Input/InputClientPolicyTests.swift`
-- `Tests/Input/InputControllerTransparentPredictionTests.swift`
-- `HANDOFF.md` —— 本文件
+If neither path is safe, discard mirrored state and return false. Do not replace arbitrary ranges to force a correction. `transparentSuffix` currently uses case-sensitive `hasPrefix`; the old handoff's claim that this path was case-insensitive was incorrect.
 
-修改：
+Lifecycle commits in mirror mode must only discard the mirror: the text already exists in the host. `composedString`/`originalString` expose an empty composition for mirrored state. `discardMirroredComposition` clears baseline/cursor/client identity and cancels predictions.
 
-- `Input/Controller/InputController.swift` —— 常量改为引用 policy；`usesTransparentPrediction` 薄封装；架构表更新
-- `Input/Controller/InputControllerKeyHandling.swift` —— Caps Lock 分支区分镜像/inline；`handleKey` 按 `InputClientPolicy.mode` 三分支路由
-- `Input/Controller/InputControllerComposition.swift` —— `commitCompositionBuffer`/`commitCompositionForLanguageSwitch` 镜像模式只清状态
-- `Input/Controller/InputControllerLifecycle.swift` —— `composedString`/`originalString` 镜像模式返回空串
-- `Input/State/InputState.swift` —— 新增 4 个镜像状态字段；`import Foundation`
-- `Tests/Input/InputControllerTests.swift` —— `InputStateTests` 覆盖新字段
-- `SwiftType.xcodeproj/project.pbxproj` —— 注册以上全部新文件（Input 分组 + 两个 target 的 Sources；TP*/CP* ID 已核对无重复）
-- `README.md` —— 修正测试命令为 `-scheme SwiftType`（旧文档引用了不存在的 `SwiftTypeTests` scheme）；架构图补入 `InputClientPolicy` 与透明预测；新增 "Per-app compatibility" 一节（含 `defaults write ... transparentPredictionBundleIdentifiers -array-add` 用法）
+Automatic punctuation cleanup verifies the same client, expected collapsed cursor, and an actual preceding space before replacing that space. On verification failure, it inserts punctuation without deleting unverified text. Keep this safety property.
 
-验证状态（2026-09-04 复核）：
+### Chromium Compatibility Caution
 
-- 全量测试：491 个用例全部通过，TEST SUCCEEDED。
-- `git diff --check` 通过（无空白错误）。
-- `xcodebuild -list` 确认 scheme 只有 `SwiftType`（README 旧命令已修正）。
-- pbxproj 中 `InputClientPolicy.swift`、`InputControllerTransparentPrediction.swift` 及两个测试文件在 PBXBuildFile/PBXFileReference/Group/Sources 四处均已注册（app + test 两个 target）。
+Historical investigation of Chromium identified a marked-text/multi-character-insertion gate for raw-key forwarding. A simplistic "consume key, do not set marked text, do not insert anything" implementation can leak or duplicate events. Persistent marked text can also interfere with language switching in some clients.
 
-此前会话已完成（保持不动）：`.flagsChanged` 注册、终端/VS Code 透传、纵向候选窗默认、`SwiftTypeInputSourceIcon.png` 资源与 Info.plist 键、`scripts/install.sh` 的 agent 重启。
+Live testing on 2026-09-09 established three dropped-input failures: VS Code 1.136.2 Monaco editors under bare passthrough, WeCom 5.0.10 under single-character direct insertion, and DingTalk 8.5.0 under inline composition. VS Code's integrated terminal still accepted raw passthrough, proving that bundle-ID routing cannot distinguish its editor and terminal surfaces. The compatibility implementation therefore gives VS Code no predictions but commits printable text through a synchronous temporary marked phase; control/navigation keys still pass through. WeCom and DingTalk use the same temporary handshake inside transparent prediction. Unit tests verify call order and state, but real clients must confirm delivery exactly once.
 
-## 九、诊断记录
+Upstream precedent: Rime Squirrel's `force_marked_text_for_direct_commit` performs the same `setMarkedText` then `insertText` sequence because some `NSTextInputClient` implementations require a marked phase before accepting direct commits. Chromium `content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm`, fcitx5-macos dummy preedit, and macSKK Direct Mode remain related references.
 
-- 实时日志：`/var/folders/yt/ngt31b5x55zgdf8lj7xwqqt40000gn/T/opencode/swifttype-caps.log`（Edge 中按中/英键无 `Caps Lock event received` —— 根因证据）。
-- 日志命令：
-  ```bash
-  /usr/bin/log stream --style compact --level info \
-    --predicate 'subsystem == "com.matthew.inputmethod.SwiftType" AND category == "InputController"'
-  ```
-- Chromium gate 参考：`content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm`（`interpretKeyEvents` 后按 `_hasMarkedText || _textToBeInserted.length() > 1` 决定 mask 或转发原键）。
-- 参考项目：`/Users/developer/coding/hallelujahIM`（`TerminalPassthrough` 策略类模式）、Squirrel `app_options`/`force_marked_text_for_direct_commit`、fcitx5-macos dummy preedit、macSKK Direct Mode。
+## 7. Prediction, UI, and Settings
 
-## 十、快速上手（下次会话从这里开始）
+- `NSSpellChecker` is local, fixed to `en_US`, with a per-predictor spell-document tag. Results are correction first, then completions, then guesses; case-insensitive duplicates and the literal prefix are excluded.
+- `Constants.spellCompletionLimit` is five. Do not confuse the five-result limit with the maximum number of preallocated grid cells.
+- Inline prediction work is synchronous in key handling. Transparent refreshes cancel/coalesce for 75 ms, then run spell-check/UI work on the main actor. Coalescing is not background spell-checking.
+- Default layout is Vertical List; default rows are four, options three/four/five. Grid columns default to five, options four/five/six. Preallocation supports up to five rows and seven columns.
+- Production calls supply predictions only, no literal candidate slot. The panel starts without an active selection. A separate Smart Space action marks the automatic candidate or shows a reason-aware `✓ Exact match` / `✓ Keep typed` literal indicator; it does not change Return/navigation selection state. Literal-slot support remains in UI code/tests but is not used by normal prediction display.
+- Vertical digit labels refer to visible rows. Inline arrows/Tab activate and move selection; grid navigation uses active rows/columns. Transparent arrows/Tab dismiss instead.
+- Candidate cells are preallocated and theme fonts/colors are partly cached. The window still reapplies layer theme work on each show and queries host geometry/window level.
+- Caret geometry currently comes from `attributes(forCharacterIndex: 0, ...)`; invalid origin falls back to the mouse. Expand/reframe uses a cached rectangle. Do not assume another index is universally correct across IMK clients without testing.
+- Appearance uses semantic system defaults unless customized. Some hex-default helpers use a separate palette; see the review before attempting consolidation.
+- Reset clears colors, opacity, grid dimensions, and layout. About offers uninstall; the status menu offers Quit. Both destructive/lifecycle flows deserve careful UX review.
+- Activation explicitly overrides to the US keyboard layout. Non-QWERTY support is a product/compatibility decision, not a safe one-line deletion.
 
-1. `sh scripts/install.sh` 安装新 Release。
-2. 让用户在 Edge/企业微信执行第六节验收场景。
-3. 若验收失败，先读 `Input/Controller/InputControllerTransparentPrediction.swift` 的 stale 检查与 `commitTransparentWord` 三路径，再按客户端实际行为调路径优先级；不要回退到"消费按键 + 无 marked text"。
-4. HUD 图标问题走第六节第 4 步。
+## 8. Resolved Local Switching/Icon Incident
+
+### Symptoms and Evidence
+
+Before cleanup, Edge/TextEdit and Terminal behaved differently when pressing the Chinese/English (Caps Lock) key. Some applications displayed an old crossed-arrow/generic icon instead of the `S`. A single-step observation also found a switch to `com.apple.keylayout.ABC`, so a visual "uppercase/lowercase" impression was not sufficient to prove a hardware Caps Lock change.
+
+Historical read-only checks repeatedly showed `HIDCapsLockState = No` and `HIDCapsLockLEDOn = No`. Other observed preferences were `TISRomanSwitchState = 1`, `AppleCapsLockPressAndHoldToggleOff = 0`, HID `CapsLockLanguageSwitch = Yes`, and no `hidutil UserKeyMapping`. These are historical observations, not instructions to write those values.
+
+Input-source queries made after switching back to ChatGPT reported Simplified Pinyin (`com.apple.inputmethod.SCIM.ITABC`). Because per-app/document input context can restore a different source, cross-app queries can misrepresent what happened in the target field. Test before/after in the same host context.
+
+Multiple discoverable bundles shared the same ID:
+
+```text
+~/coding/SwiftType/build/Debug/SwiftType.app
+~/coding/SwiftType/build/Release/SwiftType.app
+~/Library/Developer/Xcode/DerivedData/SwiftType-<build-id>/Build/Products/Debug/SwiftType.app
+~/Library/Input Methods/SwiftType.app
+```
+
+The project Debug bundle had old icon metadata, lacking `tsInputMethodIconFileKey` and `TISIconIsTemplate`. Its presence plus long-lived input UI/IMK sessions was a plausible source of stale behavior.
+
+### Actions Already Performed
+
+1. Synced `02f45be`, ran the full tests successfully, built and installed Release, and checked signature/architectures/version.
+2. Removed only the three identified rebuildable project/DerivedData `.app` copies above, retaining the intended installation.
+3. Verified Spotlight's bundle-ID query then returned only the intended installed bundle.
+4. Ran LaunchServices garbage collection and force-registered the intended bundle. Did not use `lsregister -u`.
+5. Restarted SwiftType, `imklaunchagent`, and `TextInputMenuAgent`; forcibly terminated long-lived `TextInputSwitcher` and `CursorUIViewService` instances.
+6. Confirmed the TIS icon URL resolved to the installed `Contents/Resources/SwiftTypeInputSourceIcon.png`. Source and installed icon hashes matched at that time.
+7. Asked the user to save documents, completely quit the affected hosts, reopen them, and test. The user confirmed both the `S` icon and normal switching, then confirmed all affected apps switched normally.
+
+**Conclusion:** stale duplicate registration/metadata and existing host sessions were likely contributors. Several cleanup actions preceded success, so the exact contribution of each is not experimentally isolated. Do not claim this proved all Chromium switching issues are cache-only, and do not present the earlier failure as still open.
+
+An old `/private/tmp/swifttype-test-dd/Build/Products/Debug/SwiftType.app` entry remained in a LaunchServices dump after its file was gone. Its actual impact was not demonstrated; do not pursue registry cleanup merely because an old record exists.
+
+### Diagnostic Limitations and History
+
+- Global HID key-event tracing was deferred by the user; no completed trace established letter-event `alphaShift` state for the affected hosts.
+- `osascript` UI inspection was blocked with `osascript is not allowed assistive access. (-1719)`. Do not assume Accessibility permission is now available.
+- `TextInputGlobalPropertyPerContextInput` / `KB_PerContextInput` strings were found in System Settings binaries, but no corresponding written preference was found. Do not invent or write undocumented values based on strings alone.
+- An `xcodebuild clean` attempt failed because custom build output was not recognized as build-system-owned. Targeted removal of known rebuildable app products was used instead. Do not solve this by deleting broad unrelated directories.
+- `CapsLockDelayOverride` had previously been restored to the observed system default, 75. There is no current request for keyboard timing tweaks.
+
+## 9. Installer Hardening Included With This Handoff
+
+Both local and PKG installation now use `scripts/release/pkg-scripts/install-common.sh` to validate the source bundle, copy it to a same-directory temporary location, verify the copied signature, retain the previous installation during the swap, and restore it if post-swap validation fails.
+
+The PKG scripts are checked-in and testable rather than generated heredocs. They use strict shell behavior, fail when there is no GUI user, preserve home paths containing spaces, validate ownership, reject unexpected destination symlinks, and remove legacy/system copies only after the user installation succeeds. The preinstall no longer deletes the working installation.
+
+Ordinary local installation does not restart `imklaunchagent` or force-kill shared cursor services. It refreshes the normal text-input menu/switcher agents and instructs the user to log out and back in if hosts cannot reconnect. Broad repair actions remain manual and separate.
+
+The isolated shell harness at `scripts/release/tests/test_pkg_install.sh` never touches the active input method. Its ten cases cover missing/invalid/corrupt payloads, successful replacement, error/signal rollback, failed first installation, unwritable destination, and file/directory symlink rejection. `scripts/release/tests/test_diagnose.sh` verifies the read-only diagnostic against an isolated home. A real generated PKG installation in a disposable environment remains recommended before public distribution.
+
+Phase 1–3 verification on 2026-09-08: shell syntax and whitespace checks passed, the original installer harness passed 4/4, the full isolated Xcode suite passed 533 tests with 0 failures, and the independent Tester returned PASS. After the remaining improvements, the final isolated Xcode suite passed 543 tests with 0 failures. The expanded installer harness passed 10/10, the diagnostic harness and live redaction check passed, and a third independent Tester returned PASS. Smart Space and client-compatibility verification on 2026-09-09 passed 585 tests with 0 failures or skips; focused policy/controller/UI tests and an independent Tester also passed, and an unsigned temporary Release build was universal `x86_64 arm64` with a valid plist. Temporary DerivedData does not alter the installed input method. Xcode still emitted LaunchServices registration commands despite requesting `REGISTER_WITH_LAUNCH_SERVICES=NO`; no automated unregister operation was performed.
+
+## 10. Improvement Review and Next Work
+
+`IMPROVEMENT_REVIEW.md` contains evidence, priorities, validation ideas, and confidence labels. It is a source review, not a benchmark or new runtime test report.
+
+| Priority area | Main finding / recommended work |
+| --- | --- |
+| Package safety | Implemented transactionally with validation, rollback, strict scripts, and isolated shell tests; disposable-environment PKG acceptance remains. |
+| Uninstall UX | Implemented actionable success/partial-failure reporting; preferences and configured input sources remain user-controlled. |
+| Performance measurement | Points of Interest now cover total key handling, prediction stages, geometry, rendering, and presentation without text metadata. Collect real cold/warm p50/p95/p99 measurements before tuning. |
+| Candidate freshness | Implemented generation-bound refreshes, selection revalidation, stale-candidate hiding, `NSNotFound` fallback, and deterministic tests. |
+| Shortcut clarity | Implemented separate Vertical/Grid and client-mode guidance in README and the status-menu help. |
+| Accessibility | Candidate list/row labels, hidden-row exclusion, selected state, selection notifications, and press actions are implemented. Perform the live VoiceOver matrix before claiming completion. |
+| Positioning | Current attributes and first-rect geometry now fall back to a valid recent same-client/session anchor before the mouse. Test multiple displays and missing geometry. |
+| Settings polish | Reset scope/confirmation, opacity and grid-column validation, frame autosave, and a fixed-data live preview are implemented. |
+| Tests/docs | Deterministic debounce tests, real-client acceptance, isolated installer failure tests, current documentation. |
+
+Suggested sequence: safety/clarity, measurement, measured responsiveness changes, then accessibility/positioning/polish. Avoid a prediction-engine rewrite or network service. No latency numbers were collected in this review; do not advertise a speedup based only on source inspection.
+
+## 11. Build and Verification Workflow
+
+Run from the repository root. The shared scheme is `SwiftType`, not `SwiftTypeTests` (the latter is a test target).
+
+```bash
+# Read-only state checks
+git status --short
+git diff --check
+
+# Full test suite; builds test products but should not replace the installed app
+xcodebuild -scheme SwiftType -configuration Debug test
+
+# Syntax check for the local installer
+bash -n scripts/install.sh
+
+# Explicit installation; changes the active local setup and restarts services
+./scripts/install.sh
+
+# Only for deliberately debugging the installed process
+CONFIGURATION=Debug ./scripts/install.sh
+
+# Build a distributable package, not a routine test operation
+./scripts/release/release.sh
+```
+
+Use the shebang/executable or Bash for these scripts, not `sh`. Package generation cleans project build artifacts, and package installation runs scripts with broader filesystem effects. Read them before execution. Current distribution is ad-hoc signed, not notarized; do not assume the README's Gatekeeper instructions work identically on every macOS release without testing.
+
+Build/test products may become discoverable input-method bundles even though normal builds/tests do not copy to `~/Library/Input Methods`. Check this if icon/routing symptoms recur after tests. Do not automatically rerun the installer or kill shared services after every test.
+
+### Verification Ledger
+
+| Verification | Result and freshness |
+| --- | --- |
+| Full suite after syncing `02f45be` | Earlier session reported `TEST SUCCEEDED`; exact current count not re-established here |
+| Old handoff's 491-case total | Historical 2026-09-04 result; not a fresh count for HEAD |
+| Installed build version/metadata | Reread during this handoff; build `20260907020122` |
+| Installed architecture/signature/icon hash | Passed earlier installation checks; not rerun for documentation |
+| User switching/icon acceptance | Passed after fully reopening affected hosts |
+| Installer patch syntax/diff/build-setting check | Passed earlier; no patched-installer end-to-end run |
+| Improvement review | Source/test inspection only; no application-code changes or runtime benchmarking |
+| Handoff update | Documentation only; no fresh full-suite run or system-service reset |
+
+### Relevant Existing Tests
+
+- `Tests/Input/InputClientPolicyTests.swift`: mode precedence, Edge exception, custom IDs, helper families.
+- `Tests/Input/InputControllerEventRoutingTests.swift`: modifier events, lifecycle, inline/passthrough behavior, pending-task cancellation.
+- `Tests/Input/InputControllerTransparentPredictionTests.swift`: printable insertion, no persistent marked text, deferred/coalesced refresh, suffix/verified correction commits, stale state, trailing-space protection.
+- `Tests/Input/LatinKeyHandlerTests.swift`, state/key/grid tests: literal/candidate semantics, navigation, bounds.
+- `Tests/Prediction/SpellCheckPredictor*Tests.swift`: live system-spell-check contracts; dictionary content may vary by OS.
+- `Tests/UI/CandidateWindow*Tests.swift` and theme tests: selection, layouts, rows, preferences, appearance.
+- `Tests/App/ConstantsTests.swift`, `PrivacyLoggingTests.swift`: input-source metadata and privacy expectations.
+
+Mocks do not emulate real host text pipelines or system input-source switching. Existing wall-clock sleeps in deferred tests are a known test-quality opportunity. Do not weaken tests to accommodate an unverified behavior change.
+
+### Manual Acceptance Matrix for Future Input Changes
+
+| Host / mode | Essential scenarios |
+| --- | --- |
+| TextEdit and Safari / inline | Literal text, suggestion commit, arrows, Space/Return, contractions, Backspace, switch during a partial word |
+| Edge / inline exception | Same scenarios in address bar and page field; no missing/duplicate characters; input-source switch during composition |
+| Chrome / transparent | Letters/punctuation inserted once, Backspace deletes once, suffix and typo correction commits, arrows/Tab preserve host behavior, switching leaves no composition |
+| WeCom and DingTalk / transparent compatibility | Same as Chrome, plus verify temporary mark-and-commit neither drops nor duplicates characters |
+| Native terminals / passthrough | Shell/editor shortcuts and input unchanged, no candidate popup, normal source switching |
+| VS Code / direct input | Monaco editor and integrated terminal both accept printable text once; no popup; Ctrl/Cmd/Option, Backspace, arrows, Tab, Escape, and Return remain host-owned |
+| Multiple fields/displays | Move caret/select text/switch field during delayed refresh; no stale overwrite or misplaced panel |
+
+Save user documents before any requested host restart. Do not force-quit browsers/editors with unsaved work. Record exact app version, effective policy mode, field type, key sequence, and actual input source in the same context.
+
+## 12. Diagnostics and Historical Artifacts
+
+Read-only diagnostics, if an actual failure recurs:
+
+```bash
+mdfind 'kMDItemCFBundleIdentifier == "com.matthew.inputmethod.SwiftType"'
+codesign --verify --deep --strict "$HOME/Library/Input Methods/SwiftType.app"
+/usr/bin/log stream --style compact --level info \
+  --predicate 'subsystem == "com.matthew.inputmethod.SwiftType" AND category == "InputController"'
+```
+
+Spotlight output is an inventory clue, not proof of the currently running bundle or TIS registration. Correlate process path, installed metadata, and TIS properties. Avoid capturing typed text; sanitize personal paths before sharing logs.
+
+Historical artifacts, not guaranteed to still exist:
+
+| Artifact | Location |
+| --- | --- |
+| Full test log after sync | `/var/folders/yt/ngt31b5x55zgdf8lj7xwqqt40000gn/T/opencode/swifttype-remote-sync-tests.log` |
+| Initial Edge collection | Local diagnostic artifact (not distributed) |
+| Edge collection after service refresh | Local diagnostic artifact (not distributed) |
+| Older Caps Lock investigation | `/var/folders/yt/ngt31b5x55zgdf8lj7xwqqt40000gn/T/opencode/swifttype-caps.log` |
+| Input-source preference file | `~/Library/Preferences/com.apple.HIToolbox.plist` (inspect only unless explicitly authorized) |
+| Prior local comparison project | `~/coding/hallelujahIM` |
+
+## 13. Non-Negotiable Guardrails
+
+- Preserve user and concurrent-agent changes. Never reset/checkout the worktree to remove unrelated edits.
+- Do not commit, amend, push, or create a PR without an explicit request. Check the remote carefully when publishing.
+- Do not use `TISEnableInputSource`, `TISDisableInputSource`, `TISSelectInputSource`, or `lsregister -u` to force system configuration.
+- Keep routing grounded in `client.bundleIdentifier()`, not `NSWorkspace.frontmostApplication`.
+- Keep native terminals passthrough. Keep VS Code in no-prediction direct-input mode unless live editor and integrated-terminal evidence justifies another routing change.
+- Do not add per-app menu toggles contrary to the existing decision; use the existing documented preference mechanism when appropriate.
+- Preserve Latin/English input-source metadata and the template icon resource.
+- Do not persist or log user-entered words/document contents for diagnostics or optimization.
+- Do not introduce persistent marked text into transparent prediction or blindly convert it to consumed/no-write events.
+- Never insert a mirrored composition again during lifecycle cleanup, or overwrite unverified client ranges.
+- Avoid broad service resets, permission changes, filesystem cleanup, or input-source preference writes when a read-only investigation suffices.
+- Treat the working local switching result as the baseline. Changes need evidence and focused regression verification, not assumptions from the obsolete handoff.

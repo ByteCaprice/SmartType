@@ -7,7 +7,7 @@ import XCTest
 ///
 /// Focuses on:
 ///   - `gridCols` boundary values adjacent to the valid range (2 and 8)
-///   - `highlightOpacity` with out-of-range values (no clamping is applied)
+///   - `highlightOpacity` clamping and malformed persisted values
 ///   - `setColor` rejection of syntactically invalid hex strings
 @MainActor final class ThemeManagerEdgeCaseTests: XCTestCase {
     private var defaults: UserDefaults!
@@ -63,39 +63,34 @@ import XCTest
         XCTAssertEqual(manager.gridCols, 6)
     }
 
-    // MARK: - highlightOpacity — out-of-range values (no clamping)
+    // MARK: - highlightOpacity validation
 
-    // The implementation stores the raw Float without validation.  An out-of-range
-    // value is persisted and returned verbatim — there is no clamping guard.
-    // These tests lock in the current behaviour.
-    //
-    // DEVELOPER DECISION: if values outside [0, 1] should be rejected or clamped,
-    // add a guard in `setHighlightOpacity` and update these tests accordingly.
-
-    func testHighlightOpacityAboveOneIsStoredAndReturnedAsIs() {
-        // Arrange: 1.5 is above the logical maximum of 1.0.
+    func testHighlightOpacityAboveOneClampsToOne() {
         manager.setHighlightOpacity(1.5)
-        // Assert: returned without clamping — current behaviour.
-        XCTAssertEqual(manager.highlightOpacity, 1.5, accuracy: 0.001,
-                       "DEVELOPER DECISION: highlightOpacity > 1.0 is stored as-is. " +
-                           "Add clamping in setHighlightOpacity if this is undesirable.")
+        XCTAssertEqual(manager.highlightOpacity, 1, accuracy: 0.001)
     }
 
-    func testHighlightOpacityBelowZeroIsStoredAndReturnedAsIs() {
-        // Arrange: -0.5 is below the logical minimum of 0.0.
+    func testHighlightOpacityBelowZeroClampsToZero() {
         manager.setHighlightOpacity(-0.5)
-        // Assert.
-        XCTAssertEqual(manager.highlightOpacity, -0.5, accuracy: 0.001,
-                       "DEVELOPER DECISION: highlightOpacity < 0.0 is stored as-is. " +
-                           "Add clamping in setHighlightOpacity if this is undesirable.")
+        XCTAssertEqual(manager.highlightOpacity, 0, accuracy: 0.001)
     }
 
-    func testHighlightOpacityLargeValuePersistsAcrossInstances() {
-        // Arrange: write out-of-range value, then re-read from a fresh instance.
-        manager.setHighlightOpacity(2.0)
-        let m2 = ThemeManager(defaults: defaults)
-        // Assert: the persisted value is read back without modification.
-        XCTAssertEqual(m2.highlightOpacity, 2.0, accuracy: 0.001)
+    func testLegacyOutOfRangeOpacityIsClampedWhenRead() {
+        defaults.set(2.0, forKey: "theme.highlightTransparency")
+        let fresh = ThemeManager(defaults: defaults)
+        XCTAssertEqual(fresh.highlightOpacity, 1, accuracy: 0.001)
+    }
+
+    func testNonFiniteOpacityIsRejectedAtWriteBoundary() {
+        manager.setHighlightOpacity(0.4)
+        manager.setHighlightOpacity(.infinity)
+        XCTAssertEqual(manager.highlightOpacity, 0.4, accuracy: 0.001)
+    }
+
+    func testMalformedPersistedOpacityFallsBackToDefault() {
+        defaults.set(Double.nan, forKey: "theme.highlightTransparency")
+        let fresh = ThemeManager(defaults: defaults)
+        XCTAssertEqual(fresh.highlightOpacity, ThemeManager.defaultHighlightOpacity, accuracy: 0.001)
     }
 
     // MARK: - setColor with invalid hex string
@@ -174,15 +169,15 @@ import XCTest
     func testGridRowsFallsBackToDefaultForInvalidStoredValue() {
         // Simulate an older app version writing an invalid value directly to UserDefaults.
         defaults.set(99, forKey: "theme.gridRows")
-        let m = ThemeManager(defaults: defaults)
-        XCTAssertEqual(m.gridRows, ThemeManager.defaultGridRows,
+        let freshManager = ThemeManager(defaults: defaults)
+        XCTAssertEqual(freshManager.gridRows, ThemeManager.defaultGridRows,
                        "gridRows getter must fall back to the default when stored value is invalid")
     }
 
     func testGridRowsFallsBackToDefaultWhenKeyAbsent() {
         // No value stored — defaults.integer returns 0, which is not in gridRowsOptions.
-        let m = ThemeManager(defaults: defaults)
-        XCTAssertEqual(m.gridRows, ThemeManager.defaultGridRows,
+        let freshManager = ThemeManager(defaults: defaults)
+        XCTAssertEqual(freshManager.gridRows, ThemeManager.defaultGridRows,
                        "gridRows must default to defaultGridRows when key is absent")
     }
 

@@ -13,7 +13,7 @@ import os
 /// | `InputControllerLifecycle` | IMK overrides: `activateServer`, `deactivateServer`, `composedString`, … |
 /// | `InputControllerStateManagement` | `resetState`, `cancelPredictions` |
 /// | `InputControllerPredictions` | Fetch and display spelling completions |
-/// | `InputClientPolicy` | Per-app mode: passthrough, inline, or transparent prediction |
+/// | `InputClientPolicy` | Per-app mode: passthrough, direct input, inline, or transparent prediction |
 /// | `InputControllerTransparentPrediction` | Chromium/CEF passthrough prediction without marked text |
 /// | `InputControllerComposition` | `commitCompositionBuffer`, `commitWord`, `selectCandidateByIndex`, marked text |
 /// | `LatinKeyHandler` | English candidate and trailing-space handling |
@@ -48,10 +48,14 @@ class InputController: IMKInputController, @unchecked Sendable {
     // MARK: - State + Strategy
 
     let state = InputState()
-    lazy var spellPredictor = SpellCheckPredictor()
+    lazy var spellPredictor: any PredictionProviding = SpellCheckPredictor()
     let keyHandler = LatinKeyHandler()
     let typingRules = EnglishTypingRules.shared
     var pendingTransparentPredictionUpdate: Task<Void, Never>?
+    var transparentPredictionGeneration: UInt = 0
+    var waitForTransparentPredictionDebounce: @MainActor () async throws -> Void = {
+        try await Task.sleep(for: .milliseconds(75))
+    }
 
     // MARK: - Init
 

@@ -4,12 +4,14 @@ import InputMethodKit
 import XCTest
 
 @MainActor
+// swiftlint:disable:next type_body_length
 final class InputControllerTransparentPredictionTests: XCTestCase {
     private var controller: InputController!
     private var client: RecordingTextInputClient!
+    private var predictionDelay: ManualPredictionDelay!
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    override func setUp() async throws {
+        try await super.setUp()
         CandidateWindow.shared.hide()
         client = RecordingTextInputClient()
         client.bundleIdentifierValue = "com.google.Chrome"
@@ -17,11 +19,16 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
             InputController(server: nil, delegate: nil, client: nil),
             "InputController must be instantiable without a live IMKServer for unit tests"
         )
+        let delay = ManualPredictionDelay()
+        predictionDelay = delay
+        controller.waitForTransparentPredictionDebounce = {
+            await delay.wait()
+        }
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         CandidateWindow.shared.hide()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testChromiumFamilyUsesTransparentPrediction() {
@@ -33,6 +40,7 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
             )
         )
         XCTAssertTrue(InputController.usesTransparentPrediction(bundleIdentifier: "com.tencent.WeWorkMac"))
+        XCTAssertTrue(InputController.usesTransparentPrediction(bundleIdentifier: "com.alibaba.DingTalkMac"))
         XCTAssertTrue(
             InputController.usesTransparentPrediction(
                 bundleIdentifier: "88L2Q4487U.com.tencent.wework.helper.renderer"
@@ -70,7 +78,7 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         try type("h", keyCode: 4)
         XCTAssertEqual(client.windowLevelQueryCount, 0, "keydown must not synchronously query the client")
 
-        let refreshed = await waitForCandidateRefresh()
+        let refreshed = await releaseDeferredPredictionTasks()
         XCTAssertTrue(refreshed, "the deferred prediction refresh must eventually run")
 
         XCTAssertNotEqual(
@@ -88,10 +96,8 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         try type("e", keyCode: 14)
         try type("l", keyCode: 37)
 
-        let refreshed = await waitForCandidateRefresh()
+        let refreshed = await releaseDeferredPredictionTasks()
         XCTAssertTrue(refreshed)
-        // Let any hypothetical non-coalesced stragglers fire before counting.
-        try await Task.sleep(for: .milliseconds(250))
 
         XCTAssertEqual(client.windowLevelQueryCount, 1, "a typing burst must produce exactly one candidate refresh")
         XCTAssertEqual(client.attributesQueryCount, 1)
@@ -106,8 +112,7 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         try type("h", keyCode: 4)
         _ = try type("\u{1B}", keyCode: KeyCode.escape.rawValue)
 
-        // Well past the 75 ms debounce: a discarded composition must never refresh.
-        try await Task.sleep(for: .milliseconds(400))
+        await releaseDeferredPredictionTasks()
 
         XCTAssertEqual(client.windowLevelQueryCount, 0)
         XCTAssertFalse(CandidateWindow.shared.isVisible)
@@ -115,11 +120,46 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
+    func testSelectionChangeBeforeDeferredRefreshDiscardsStaleMirror() async throws {
+        try type("h", keyCode: 4)
+        client.selectedLocation = 9
+
+        await releaseDeferredPredictionTasks()
+
+        XCTAssertEqual(client.windowLevelQueryCount, 0)
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertFalse(controller.state.mirrorsClientText)
+    }
+
+    func testUnknownSelectionStillAllowsDeferredRefresh() async throws {
+        client.selectedLocation = NSNotFound
+        try type("h", keyCode: 4)
+
+        let refreshed = await releaseDeferredPredictionTasks()
+
+        XCTAssertTrue(refreshed)
+        XCTAssertTrue(CandidateWindow.shared.isVisible)
+        XCTAssertEqual(controller.state.compositionBuffer, "h")
+    }
+
+    func testNewKeystrokeHidesCandidatesUntilTheirGenerationRefreshes() async throws {
+        try type("h", keyCode: 4)
+        _ = await releaseDeferredPredictionTasks()
+        XCTAssertTrue(CandidateWindow.shared.isVisible)
+
+        try type("e", keyCode: 14)
+
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+        XCTAssertTrue(controller.state.currentPredictions.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "he")
+    }
+
     func testDeferredRefreshMakesFirstPredictionSelectableWithDigitOne() async throws {
         try type("h", keyCode: 4)
         try type("e", keyCode: 14)
         try type("l", keyCode: 37)
-        let refreshed = await waitForCandidateRefresh()
+        let refreshed = await releaseDeferredPredictionTasks()
         XCTAssertTrue(refreshed)
         XCTAssertTrue(CandidateWindow.shared.isVisible)
 
@@ -132,16 +172,88 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
     }
 
-    func testWeComLettersStayMirroredWithoutMarkedText() throws {
+    func testAccessibilityCandidateActionCommitsTransparentPrediction() async throws {
+        try type("h", keyCode: 4)
+        try type("e", keyCode: 14)
+        try type("l", keyCode: 37)
+        let refreshed = await releaseDeferredPredictionTasks()
+        XCTAssertTrue(refreshed)
+        let expected = try XCTUnwrap(controller.state.currentPredictions.first)
+
+        XCTAssertTrue(CandidateWindow.shared.performAccessibilityCandidateSelection(at: 0))
+
+        XCTAssertEqual(client.document, expected + " ")
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testWeComLettersUseTemporaryMarkedTextPriming() throws {
         client.bundleIdentifierValue = "com.tencent.WeWorkMac"
         try type("h", keyCode: 4)
         try type("e", keyCode: 14)
 
         XCTAssertEqual(controller.state.compositionBuffer, "he")
-        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertEqual(client.markedText, ["h", "e"])
         XCTAssertEqual(client.insertedText, ["h", "e"])
         XCTAssertEqual(client.document, "he")
         XCTAssertEqual(controller.state.expectedCursor, 2)
+    }
+
+    func testWeComPrimedSuffixCommitLandsExactlyOnce() throws {
+        client.bundleIdentifierValue = "com.tencent.WeWorkMac"
+        try type("h", keyCode: 4)
+        try type("e", keyCode: 14)
+        try type("l", keyCode: 37)
+        controller.state.currentPredictions = ["hello"]
+        showCandidates(["hello"])
+
+        let handled = try type("1", keyCode: KeyCode.key1.rawValue)
+
+        XCTAssertTrue(handled)
+        // The typed prefix already lives in the document; only the "lo " suffix is
+        // committed, through the primed mark-then-insert path, exactly once.
+        XCTAssertEqual(client.document, "hello ")
+        XCTAssertEqual(client.insertedText, ["h", "e", "l", "lo "])
+        XCTAssertEqual(client.markedText, ["h", "e", "l", "lo "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+    }
+
+    func testWeComPrimedCorrectionReplacesTypedRegionExactlyOnce() throws {
+        client.bundleIdentifierValue = "com.tencent.WeWorkMac"
+        try type("t", keyCode: 17)
+        try type("e", keyCode: 14)
+        try type("h", keyCode: 4)
+        setPredictionSnapshot(
+            buffer: "teh",
+            predictions: ["the"],
+            action: .prediction(index: 0),
+            reason: .correction
+        )
+
+        let handled = try type(" ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(handled)
+        // The verified typed region is replaced by "the " — primed, so the letters
+        // are marked first, and the document ends with a single corrected word.
+        XCTAssertEqual(client.document, "the ")
+        XCTAssertEqual(client.insertedText, ["t", "e", "h", "the "])
+        XCTAssertEqual(client.markedText, ["t", "e", "h", "the "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testDingTalkUsesPrimingForLettersPunctuationAndSpace() throws {
+        client.bundleIdentifierValue = "com.alibaba.DingTalkMac"
+
+        XCTAssertTrue(try type("h", keyCode: 4))
+        XCTAssertTrue(try type(".", keyCode: 47))
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+
+        XCTAssertEqual(client.markedText, ["h", ".", " "])
+        XCTAssertEqual(client.insertedText, ["h", ".", " "])
+        XCTAssertEqual(client.document, "h. ")
+        XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
     func testBackspaceShrinksMirrorAndLeavesDeletionToClient() throws {
@@ -201,6 +313,76 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(client.insertedText, ["h", " "])
         XCTAssertEqual(client.document, "h ")
         XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testSpaceInsertsFreshDefaultCompletionSuffix() throws {
+        try type("a", keyCode: 0)
+        try type("p", keyCode: 35)
+        try type("p", keyCode: 35)
+        try type("l", keyCode: 37)
+        setPredictionSnapshot(
+            buffer: "appl",
+            predictions: ["apply", "apple"],
+            action: .prediction(index: 0),
+            reason: .prefixCompletion
+        )
+
+        let handled = try type(" ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(handled)
+        XCTAssertEqual(client.insertedText, ["a", "p", "p", "l", "y "])
+        XCTAssertEqual(client.document, "apply ")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
+    func testSpacePreservesTransparentCompleteWord() throws {
+        try type("a", keyCode: 0)
+        try type("p", keyCode: 35)
+        try type("p", keyCode: 35)
+        setPredictionSnapshot(
+            buffer: "app",
+            predictions: ["appreciate", "apply"],
+            action: .literal,
+            reason: .exactCompletion
+        )
+
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+        XCTAssertEqual(client.insertedText, ["a", "p", "p", " "])
+        XCTAssertEqual(client.document, "app ")
+    }
+
+    func testSpaceAppliesVerifiedTransparentCorrection() throws {
+        try type("t", keyCode: 17)
+        try type("e", keyCode: 14)
+        try type("h", keyCode: 4)
+        setPredictionSnapshot(
+            buffer: "teh",
+            predictions: ["the"],
+            action: .prediction(index: 0),
+            reason: .correction
+        )
+
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+        XCTAssertEqual(client.markedText, ["the "])
+        XCTAssertEqual(client.document, "the ")
+    }
+
+    func testUnverifiedTransparentDefaultFallsBackToLiteralSpace() throws {
+        try type("t", keyCode: 17)
+        try type("e", keyCode: 14)
+        try type("h", keyCode: 4)
+        client.supportsDocumentAccess = false
+        setPredictionSnapshot(
+            buffer: "teh",
+            predictions: ["the"],
+            action: .prediction(index: 0),
+            reason: .correction
+        )
+
+        XCTAssertTrue(try type(" ", keyCode: KeyCode.space.rawValue))
+        XCTAssertTrue(client.markedText.isEmpty)
+        XCTAssertEqual(client.document, "teh ")
+        XCTAssertEqual(client.insertedText, ["t", "e", "h", " "])
     }
 
     func testSpaceWithNoCompositionIsInsertedOnceAndConsumed() throws {
@@ -263,6 +445,20 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertFalse(controller.state.didAutoInsertTrailingSpace)
     }
 
+    func testSpaceBeforeDeferredRefreshStaysLiteralAndCancelsCandidates() async throws {
+        try type("h", keyCode: 4)
+
+        let handled = try type(" ", keyCode: KeyCode.space.rawValue)
+
+        XCTAssertTrue(handled)
+        XCTAssertEqual(client.document, "h ")
+        XCTAssertEqual(client.insertedText, ["h", " "])
+        XCTAssertNil(controller.pendingTransparentPredictionUpdate)
+        await releaseDeferredPredictionTasks()
+        XCTAssertEqual(client.windowLevelQueryCount, 0)
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+    }
+
     func testReturnBeforeDeferredRefreshCancelsPendingCandidates() async throws {
         try type("h", keyCode: 4)
 
@@ -271,7 +467,7 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertFalse(handled)
         XCTAssertEqual(controller.state.compositionBuffer, "")
         XCTAssertNil(controller.pendingTransparentPredictionUpdate)
-        try await Task.sleep(for: .milliseconds(150))
+        await releaseDeferredPredictionTasks()
         XCTAssertEqual(client.windowLevelQueryCount, 0)
     }
 
@@ -449,16 +645,16 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         return controller.handle(event, client: client)
     }
 
-    /// Polls the main actor until the deferred candidate refresh has performed its
-    /// first client query, so tests do not depend on the exact debounce duration.
-    private func waitForCandidateRefresh(timeout: TimeInterval = 2) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while client.windowLevelQueryCount == 0, Date() < deadline {
-            try? await Task.sleep(for: .milliseconds(15))
+    /// Releases every scheduled debounce and waits for the controller task to settle.
+    /// This keeps scheduling tests deterministic and independent of wall-clock timing.
+    @discardableResult
+    private func releaseDeferredPredictionTasks() async -> Bool {
+        for _ in 0 ..< 100 where predictionDelay.pendingCount == 0 {
+            await Task.yield()
         }
-        if client.windowLevelQueryCount > 0 {
-            // Give `CandidateWindow.show` time to finish past its `windowLevel()` call.
-            try? await Task.sleep(for: .milliseconds(50))
+        predictionDelay.resumeAll()
+        for _ in 0 ..< 100 where controller.pendingTransparentPredictionUpdate != nil {
+            await Task.yield()
         }
         return client.windowLevelQueryCount > 0
     }
@@ -468,6 +664,27 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
             candidates: candidates,
             layout: .vertical,
             client: client,
+        )
+    }
+
+    private func setPredictionSnapshot(
+        buffer: String,
+        predictions: [String],
+        action: DefaultSpaceAction,
+        reason: DefaultSpaceReason
+    ) {
+        controller.state.predictionSnapshot = PredictionSnapshot(
+            buffer: buffer,
+            predictions: predictions,
+            defaultSpaceAction: action,
+            reason: reason
+        )
+        CandidateWindow.shared.show(
+            candidates: predictions,
+            defaultSpaceAction: action,
+            literalSpaceText: buffer,
+            layout: .vertical,
+            client: client
         )
     }
 
@@ -499,6 +716,26 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
             isARepeat: false,
             keyCode: keyCode,
         ))
+    }
+}
+
+@MainActor private final class ManualPredictionDelay {
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+
+    var pendingCount: Int { continuations.count }
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            continuations.append(continuation)
+        }
+    }
+
+    func resumeAll() {
+        let pending = continuations
+        continuations.removeAll()
+        for continuation in pending {
+            continuation.resume()
+        }
     }
 }
 
@@ -538,8 +775,8 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     }
 
     private func stringValue(_ string: Any) -> String {
-        if let s = string as? String { return s }
-        if let a = string as? NSAttributedString { return a.string }
+        if let plainString = string as? String { return plainString }
+        if let attributedString = string as? NSAttributedString { return attributedString.string }
         return String(describing: string)
     }
 

@@ -84,7 +84,8 @@ enum CandidateLayout: String, CaseIterable, Sendable {
     // MARK: - Highlight Opacity
 
     func setHighlightOpacity(_ value: CGFloat) {
-        setDefault(Float(value), forKey: Keys.highlightOpacity)
+        guard value.isFinite else { return }
+        setDefault(Float(min(max(value, 0), 1)), forKey: Keys.highlightOpacity)
     }
 
     // MARK: - Theme Colors
@@ -111,6 +112,7 @@ enum CandidateLayout: String, CaseIterable, Sendable {
     }
 
     func setGridCols(_ count: Int) {
+        guard Self.gridColsOptions.contains(count) else { return }
         setDefault(count, forKey: Keys.gridCols)
     }
 
@@ -173,10 +175,12 @@ enum CandidateLayout: String, CaseIterable, Sendable {
     }
 
     private static func readHighlightOpacity(from defaults: UserDefaults) -> CGFloat {
-        if let value = defaults.object(forKey: Keys.highlightOpacity) as? Float {
-            return CGFloat(value)
+        guard let stored = defaults.object(forKey: Keys.highlightOpacity) as? NSNumber else {
+            return defaultHighlightOpacity
         }
-        return defaultHighlightOpacity
+        let value = CGFloat(stored.doubleValue)
+        guard value.isFinite else { return defaultHighlightOpacity }
+        return min(max(value, 0), 1)
     }
 
     private static func buildTheme(from defaults: UserDefaults) -> Theme {

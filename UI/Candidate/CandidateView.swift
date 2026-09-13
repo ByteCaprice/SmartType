@@ -380,6 +380,9 @@ private struct PredictionCellPresentation {
                     hideCell(container)
                 }
             }
+            for col in columnCount ..< Constants.maxSupportedGridCols {
+                hideCell(cells[rowIndex][col])
+            }
         }
 
         for (index, separator) in separators.enumerated() {
@@ -527,7 +530,10 @@ private struct PredictionCellPresentation {
 
     func clearAccessibilityCandidates() {
         updateSpaceHint(action: .literal, reason: .fallbackLiteral, literalText: nil)
-        guard !accessibilityCandidateLabels.isEmpty else { return }
+        for rowIndex in cells.indices {
+            gridView.row(at: rowIndex).isHidden = true
+            hideAllCells(inVisibleRow: rowIndex)
+        }
         accessibilityCandidateLabels = []
         accessibilitySelectedCandidateLabel = nil
         visualCandidateLabels = []

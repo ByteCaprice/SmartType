@@ -186,6 +186,21 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
+    func testAccessibilityCandidateActionRejectsStaleSelection() async throws {
+        try type("h", keyCode: 4)
+        try type("e", keyCode: 14)
+        try type("l", keyCode: 37)
+        let refreshed = await releaseDeferredPredictionTasks()
+        XCTAssertTrue(refreshed)
+        client.selectedLocation = 0
+
+        XCTAssertTrue(CandidateWindow.shared.performAccessibilityCandidateSelection(at: 0))
+
+        XCTAssertEqual(client.document, "hel")
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertFalse(controller.state.mirrorsClientText)
+    }
+
     func testWeComLettersUseTemporaryMarkedTextPriming() throws {
         client.bundleIdentifierValue = "com.tencent.WeWorkMac"
         try type("h", keyCode: 4)

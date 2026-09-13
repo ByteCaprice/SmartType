@@ -18,6 +18,7 @@ import XCTest
         XCTAssertTrue(result.succeeded)
         XCTAssertFalse(result.removedAppBundle)
         XCTAssertFalse(result.removedApplicationsLink)
+        XCTAssertFalse(result.appBundleRemovalAttempted)
         XCTAssertTrue(fileManager.removedPaths.isEmpty)
     }
 
@@ -35,7 +36,8 @@ import XCTest
         XCTAssertTrue(result.succeeded)
         XCTAssertTrue(result.removedAppBundle)
         XCTAssertTrue(result.removedApplicationsLink)
-        XCTAssertEqual(fileManager.removedPaths, [appBundle.path, applicationsLink.path])
+        XCTAssertTrue(result.appBundleRemovalAttempted)
+        XCTAssertEqual(fileManager.removedPaths, [applicationsLink.path, appBundle.path])
     }
 
     func testRemovalFailuresAreReportedWithoutHidingPartialSuccess() {
@@ -51,10 +53,29 @@ import XCTest
         )
 
         XCTAssertFalse(result.succeeded)
-        XCTAssertTrue(result.removedAppBundle)
+        XCTAssertFalse(result.removedAppBundle)
         XCTAssertFalse(result.removedApplicationsLink)
+        XCTAssertFalse(result.appBundleRemovalAttempted)
         XCTAssertEqual(result.failures.count, 1)
         XCTAssertTrue(result.failures[0].contains(applicationsLink.path))
+        XCTAssertEqual(fileManager.removedPaths, [])
+    }
+
+    func testBundleRemovalFailureRequiresTermination() {
+        let fileManager = FakeUninstallFileManager()
+        fileManager.existingPaths = [appBundle.path]
+        fileManager.failingPaths = [appBundle.path]
+
+        let result = SettingsWindowController.removeInstallation(
+            appBundle: appBundle,
+            applicationsSymlink: applicationsLink,
+            fileManager: fileManager
+        )
+
+        XCTAssertFalse(result.succeeded)
+        XCTAssertTrue(result.appBundleRemovalAttempted)
+        XCTAssertFalse(result.removedAppBundle)
+        XCTAssertEqual(result.failures.count, 1)
     }
 }
 

@@ -144,6 +144,19 @@ test_failure_without_previous_install_leaves_destination_absent() {
     [[ ! -e "${destination}" ]]
 }
 
+test_first_install_sets_destination_directory_owner() {
+    local root="${TEST_ROOT}/directory-owner"
+    local source="${root}/source/SwiftType.app"
+    local destination_dir="${root}/Input Methods"
+    local destination="${destination_dir}/SwiftType.app"
+    make_bundle "${source}" new
+
+    swifttype_transactional_install "${source}" "${destination}" "${OWNER_GROUP}"
+
+    [[ "$(stat -f '%Su:%Sg' "${destination_dir}")" == "${OWNER_GROUP}" ]]
+    assert_file_contains "${destination}/Contents/Resources/marker" new
+}
+
 test_unwritable_destination_preserves_old_install() {
     local root="${TEST_ROOT}/unwritable"
     local source="${root}/source/SwiftType.app"
@@ -200,6 +213,7 @@ run_test 'invalid bundle identifier preserves old installation' test_invalid_ide
 run_test 'corrupt signature preserves old installation' test_corrupt_signature_preserves_old_install
 run_test 'signal interruption restores old installation' test_signal_during_swap_restores_old_install
 run_test 'failed first installation leaves destination absent' test_failure_without_previous_install_leaves_destination_absent
+run_test 'first install owns destination directory' test_first_install_sets_destination_directory_owner
 run_test 'unwritable destination preserves old installation' test_unwritable_destination_preserves_old_install
 run_test 'symlink destination directory is rejected' test_destination_directory_symlink_is_rejected
 run_test 'symlink destination is rejected' test_destination_symlink_is_rejected

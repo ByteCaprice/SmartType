@@ -41,7 +41,7 @@ swifttype_transactional_install() (
     local source_bundle="$1"
     local destination="$2"
     local owner_group="$3"
-    local destination_dir work_dir candidate backup had_previous=0 swap_complete=0
+    local destination_dir work_dir candidate backup had_previous=0 swap_complete=0 rollback_failed=0
 
     destination_dir=$(/usr/bin/dirname "${destination}")
     swifttype_validate_bundle "${source_bundle}" || return 1
@@ -51,23 +51,38 @@ swifttype_transactional_install() (
         printf 'ERROR: Refusing to replace an installation through a symlink: %s\n' "${destination}" >&2
         return 1
     fi
+    /usr/sbin/chown "${owner_group}" "${destination_dir}" || return 1
 
     work_dir=$(/usr/bin/mktemp -d "${destination_dir}/.SwiftType.installing.XXXXXX") || return 1
     candidate="${work_dir}/SwiftType.app"
-    backup="${destination_dir}/.SwiftType.backup.$$"
+    backup="${work_dir}/PreviousSwiftType.app"
 
     swifttype_rollback_install() {
         local status=$?
         trap - EXIT HUP INT TERM
         if (( swap_complete )); then
-            /bin/rm -rf "${destination}" 2>/dev/null || true
+            /bin/rm -rf "${destination}" 2>/dev/null || rollback_failed=1
         fi
-        if (( had_previous )) && [[ -e "${backup}" && ! -e "${destination}" ]]; then
-            /bin/mv "${backup}" "${destination}" 2>/dev/null || true
+        if (( had_previous )) && [[ -e "${backup}" || -L "${backup}" ]]; then
+            if [[ ! -e "${destination}" && ! -L "${destination}" ]]; then
+                /bin/mv "${backup}" "${destination}" 2>/dev/null || rollback_failed=1
+            else
+                rollback_failed=1
+            fi
         fi
-        /bin/rm -rf "${work_dir}" "${backup}" 2>/dev/null || true
+        if [[ ! -e "${backup}" && ! -L "${backup}" ]]; then
+            /bin/rm -rf "${work_dir}" 2>/dev/null || true
+        fi
         if (( status != 0 )); then
-            printf 'ERROR: Installation failed; the previous SwiftType installation was preserved.\n' >&2
+            if [[ -e "${backup}" || -L "${backup}" ]]; then
+                printf 'ERROR: Installation failed; recovery needs attention. The previous installation remains at %s.\n' \
+                    "${backup}" >&2
+            elif (( rollback_failed )); then
+                printf 'ERROR: Installation failed and cleanup was incomplete; inspect %s before retrying.\n' \
+                    "${destination}" >&2
+            else
+                printf 'ERROR: Installation failed; the previous SwiftType installation was preserved.\n' >&2
+            fi
         fi
         exit "${status}"
     }
@@ -79,16 +94,11 @@ swifttype_transactional_install() (
     swifttype_validate_bundle "${candidate}" || return 1
 
     if [[ -e "${destination}" ]]; then
-        /bin/mv "${destination}" "${backup}" || return 1
         had_previous=1
-    fi
-    if ! /bin/mv "${candidate}" "${destination}"; then
-        if (( had_previous )); then
-            /bin/mv "${backup}" "${destination}" 2>/dev/null || true
-        fi
-        return 1
+        /bin/mv "${destination}" "${backup}" || return 1
     fi
     swap_complete=1
+    /bin/mv "${candidate}" "${destination}" || return 1
 
     swifttype_validate_bundle "${destination}" || return 1
     swifttype_post_swap_hook || return 1

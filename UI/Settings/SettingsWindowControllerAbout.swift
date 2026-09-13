@@ -11,6 +11,7 @@ extension FileManager: UninstallFileManaging {}
 struct UninstallResult {
     var removedAppBundle = false
     var removedApplicationsLink = false
+    var appBundleRemovalAttempted = false
     var failures: [String] = []
 
     var succeeded: Bool { failures.isEmpty }
@@ -107,10 +108,19 @@ extension SettingsWindowController {
             Log.settings.error("Uninstall finished with removal failures")
             alert.alertStyle = .critical
             alert.messageText = "SwiftType Couldn’t Be Completely Removed"
-            alert.informativeText = result.failures.joined(separator: "\n")
-                + "\n\nSwiftType will remain open so you can retry or remove the listed item manually."
-            alert.addButton(withTitle: "OK")
+            if result.appBundleRemovalAttempted {
+                alert.informativeText = result.failures.joined(separator: "\n")
+                    + "\n\nSwiftType will quit so it cannot continue running from a partially removed bundle."
+                alert.addButton(withTitle: "Quit SwiftType")
+            } else {
+                alert.informativeText = result.failures.joined(separator: "\n")
+                    + "\n\nSwiftType will remain open so you can retry or remove the listed item manually."
+                alert.addButton(withTitle: "OK")
+            }
             alert.runModal()
+            if result.appBundleRemovalAttempted {
+                NSApp.terminate(nil)
+            }
         }
     }
 
@@ -121,21 +131,23 @@ extension SettingsWindowController {
     ) -> UninstallResult {
         var result = UninstallResult()
 
-        if fileManager.fileExists(atPath: appBundle.path) {
-            do {
-                try fileManager.removeItem(at: appBundle)
-                result.removedAppBundle = true
-            } catch {
-                result.failures.append("Could not remove \(appBundle.path). Check its permissions.")
-            }
-        }
-
         if (try? fileManager.destinationOfSymbolicLink(atPath: applicationsSymlink.path)) != nil {
             do {
                 try fileManager.removeItem(at: applicationsSymlink)
                 result.removedApplicationsLink = true
             } catch {
                 result.failures.append("Could not remove \(applicationsSymlink.path). Administrator permission may be required.")
+                return result
+            }
+        }
+
+        if fileManager.fileExists(atPath: appBundle.path) {
+            result.appBundleRemovalAttempted = true
+            do {
+                try fileManager.removeItem(at: appBundle)
+                result.removedAppBundle = true
+            } catch {
+                result.failures.append("Could not remove \(appBundle.path). Check its permissions.")
             }
         }
 

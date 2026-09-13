@@ -54,6 +54,13 @@ extension InputController {
     }
 
     func selectTransparentCandidateByIndex(_ index: Int, client: any IMKTextInput) {
+        guard state.mirrorsClientText,
+              !state.compositionBuffer.isEmpty,
+              !isMirroredCompositionStale(client: client)
+        else {
+            discardMirroredComposition()
+            return
+        }
         guard state.currentPredictions.indices.contains(index) else { return }
         let prediction = state.currentPredictions[index]
         let word = typingRules.preserveCapitalization(

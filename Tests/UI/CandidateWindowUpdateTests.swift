@@ -192,10 +192,32 @@ import XCTest
     }
 
     func testHideRemovesAccessibilityCandidates() {
-        CandidateWindow.shared.show(candidates: ["hello"], layout: .vertical, client: nil)
+        var selectedIndex: Int?
+        CandidateWindow.shared.show(
+            candidates: ["hello"],
+            layout: .vertical,
+            client: nil,
+            candidateSelectionHandler: { selectedIndex = $0 }
+        )
         CandidateWindow.shared.hide()
 
         XCTAssertTrue(CandidateWindow.shared.accessibilityCandidateLabels.isEmpty)
+        XCTAssertFalse(CandidateWindow.shared.performAccessibilityCandidateSelection(at: 0))
+        XCTAssertNil(selectedIndex)
+    }
+
+    func testChangingToNarrowerGridRemovesStaleAccessibilityCells() {
+        let originalColumns = Constants.gridMaxVisibleCols
+        defer { ThemeManager.shared.setGridCols(originalColumns) }
+        ThemeManager.shared.setGridCols(6)
+        CandidateWindow.shared.show(candidates: ["a", "b", "c", "d", "e", "f"], layout: .grid, client: nil)
+        XCTAssertEqual(CandidateWindow.shared.accessibilityCandidateLabels.count, 6)
+
+        ThemeManager.shared.setGridCols(4)
+        CandidateWindow.shared.show(candidates: ["a", "b", "c", "d"], layout: .grid, client: nil)
+
+        XCTAssertEqual(CandidateWindow.shared.accessibilityCandidateLabels, ["1, a", "2, b", "3, c", "4, d"])
+        XCTAssertFalse(CandidateWindow.shared.performAccessibilityCandidateSelection(at: 4))
     }
 
     // MARK: - Cursor geometry

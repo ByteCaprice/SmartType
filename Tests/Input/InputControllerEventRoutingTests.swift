@@ -65,6 +65,32 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertFalse(handled, "Caps Lock must reach macOS so it can switch the input source")
     }
 
+    func testCapsLockWithoutCompositionDoesNotQueryClientPolicy() {
+        let event = Self.flagsChangedEvent(keyCode: Self.capsLockKeyCode, flags: .maskAlphaShift)
+
+        XCTAssertFalse(controller.handle(event, client: client))
+
+        XCTAssertEqual(
+            client.bundleIdentifierCallCount,
+            0,
+            "an empty Caps Lock path must not block on unnecessary client IPC"
+        )
+    }
+
+    func testCapsLockWithInlineCompositionQueriesClientPolicyOnce() {
+        controller.state.compositionBuffer = "hel"
+        let event = Self.flagsChangedEvent(keyCode: Self.capsLockKeyCode, flags: .maskAlphaShift)
+
+        XCTAssertFalse(controller.handle(event, client: client))
+
+        XCTAssertEqual(
+            client.bundleIdentifierCallCount,
+            1,
+            "the Caps Lock cleanup path must not resolve the same client policy twice"
+        )
+        XCTAssertEqual(client.insertedText, ["hel"])
+    }
+
     func testShiftFlagsChangedEventIsPassedThroughToSystem() {
         let event = Self.flagsChangedEvent(keyCode: Self.shiftKeyCode, flags: .maskShift)
 
@@ -82,6 +108,60 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertEqual(controller.state.compositionBuffer, "")
         XCTAssertEqual(client.insertedText, ["hel"])
         XCTAssertEqual(client.markedText, [""])
+    }
+
+    func testCapsLockOffEdgeCommitsLiteralWithoutAcceptingPrediction() {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello"]
+        CandidateWindow.shared.show(candidates: ["hello"], layout: .vertical, client: client)
+
+        XCTAssertFalse(controller.handle(
+            Self.flagsChangedEvent(keyCode: Self.capsLockKeyCode, flags: []),
+            client: client
+        ))
+
+        XCTAssertEqual(client.insertedText, ["hel"])
+        XCTAssertEqual(client.markedText, [""])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertNil(controller.state.predictionSnapshot)
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+    }
+
+    func testRepeatedCapsLockAndSystemCommitDoNotInsertCompositionTwice() {
+        controller.state.compositionBuffer = "hel"
+
+        // Synthetic events are sent only to this controller, never posted to macOS.
+        let edges: [CGEventFlags] = [.maskAlphaShift, [], .maskAlphaShift, []]
+        for flags in edges {
+            XCTAssertFalse(controller.handle(
+                Self.flagsChangedEvent(keyCode: Self.capsLockKeyCode, flags: flags),
+                client: client
+            ))
+            controller.commitComposition(client)
+        }
+        controller.deactivateServer(client)
+
+        XCTAssertEqual(client.insertedText, ["hel"])
+        XCTAssertTrue(client.markedText.allSatisfy { $0.isEmpty })
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
+    }
+
+    func testSystemCommitBeforeCapsLockDoesNotReinsertText() {
+        controller.state.compositionBuffer = "hel"
+        controller.commitComposition(client)
+
+        XCTAssertFalse(controller.handle(
+            Self.flagsChangedEvent(keyCode: Self.capsLockKeyCode, flags: []),
+            client: client
+        ))
+        controller.deactivateServer(client)
+        controller.activateServer(client)
+
+        XCTAssertEqual(client.insertedText, ["hel"])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertNil(controller.state.predictionSnapshot)
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
     }
 
     // MARK: - switch-away safety net
@@ -738,6 +818,7 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     private(set) var insertedText: [String] = []
     private(set) var markedText: [String] = []
     private(set) var overriddenKeyboardNames: [String] = []
+    private(set) var bundleIdentifierCallCount = 0
 
     func insertText(_ string: Any, replacementRange _: NSRange) {
         insertedText.append(stringValue(string))
@@ -777,7 +858,10 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     }
     func selectMode(_: String!) {}
     func supportsUnicode() -> Bool { true }
-    func bundleIdentifier() -> String! { bundleIdentifierValue }
+    func bundleIdentifier() -> String! {
+        bundleIdentifierCallCount += 1
+        return bundleIdentifierValue
+    }
     func windowLevel() -> CGWindowLevel { 0 }
     func supportsProperty(_: TSMDocumentPropertyTag) -> Bool { false }
     func uniqueClientIdentifierString() -> String! { "recording-client" }

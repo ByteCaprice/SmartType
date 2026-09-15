@@ -2,7 +2,7 @@
 
 This guide documents the switching behavior of the current SwiftType implementation. It is intended for maintainers changing InputMethodKit event handling, per-application routing, input-source metadata, or installation behavior.
 
-The switching foundation was introduced by commit `45aa8ba` and refined by `02f45be`. The source tree currently published on `main` matches `02f45be`.
+The switching foundation has since been extended with Smart Space, targeted client compatibility, and stale-state safeguards. This guide describes the current implementation rather than a historical commit snapshot.
 
 ## 1. What Performs the Switch
 
@@ -29,6 +29,21 @@ The user needs SwiftType and at least one non-Latin input source, such as a Chin
 6. Test both Caps Lock and the system's normal input-source shortcut, usually `Control-Space`.
 
 If `Control-Space` works but Caps Lock does not, check the Caps Lock preference, SwiftType metadata, and flags-changed event handling. If neither works, investigate installation, registration, or the active host session first.
+
+### Caps Lock sometimes returns to ABC
+
+Caps Lock does not have a fixed app-controlled “default English input method.” Apple describes its Latin destination as the **last-used Latin input source**. ABC and SwiftType are both Latin sources, so selecting ABC, or entering a field that changes the input source, can affect subsequent switching. The destination is selected by macOS, not by SwiftType while Pinyin is active.
+
+1. Finish the current composition and open a normal, non-password field in TextEdit.
+2. Select **SwiftType** explicitly from the input menu, then select **Pinyin**.
+3. Tap and release Caps Lock, checking the actual input-menu selection after each switch. Holding Caps Lock also has a capitalization function; the app cannot remove the system's key timing.
+4. Compare with **Control-Space**, which selects the last-used source. **Control-Option-Space** selects the next source; Globe/Fn configured to change input source can cycle through all enabled sources, including ABC.
+5. In Keyboard > Text Input > Edit, check the displayed Caps Lock destination and **Automatically switch to a document's input source**. If enabled, temporarily turning the document option off manually can help isolate per-document switching. Remember its previous value.
+6. If ABC is not wanted in regular switching, inspect whether System Settings allows removing it while retaining SwiftType and Pinyin. Do not force removal by editing HIToolbox preferences or disabling the last system keyboard layout. Secure fields may still require a system layout.
+
+These steps are a diagnostic/setup procedure, not a guarantee that macOS will always choose SwiftType. Do not add a global ABC-to-SwiftType redirect, keyboard event tap, private preference override, or automatic source selection to the controller as a workaround.
+
+The read-only diagnostic below distinguishes the **selected input source** from its **underlying keyboard layout**. SwiftType intentionally uses a US layout for key interpretation; seeing US there does not mean macOS switched away from SwiftType. Likewise, `TISCopyInputSourceForLanguage("en")` is an English-language lookup, not a documented Caps Lock destination API.
 
 ## 3. Required Bundle Metadata
 
@@ -90,10 +105,14 @@ Both parts are mandatory:
 |---|---|
 | Include `.flagsChanged` in `recognizedEvents(_:)` | The controller does not receive Caps Lock flags-changed events; switching commonly appears stuck during composition. |
 | Return `false` for Caps Lock | SwiftType consumes the event and macOS cannot perform the switch. |
+| Avoid client-policy IPC when no composition exists | A busy special client can delay an otherwise immediate system switch. |
+| Resolve client policy only once for an active composition | Duplicate synchronous client calls add avoidable latency to the switch path. |
 | Finish inline marked text before returning | Some clients defer switching while a marked range remains active. |
 | Discard transparent mirror state without inserting it | The client already owns the typed text; inserting it again duplicates text. |
 
 Other flags-changed events, including ordinary Shift state changes, must also pass through unchanged.
+
+The Caps Lock path must avoid unnecessary synchronous calls into the host process. With no local composition, it returns `false` without querying the IMK client's bundle identifier. With an active buffer, client policy is resolved once inside `commitCompositionForLanguageSwitch(client:)`. This matters when a web renderer or other special client is temporarily busy: redundant cross-process calls can make an otherwise system-owned switch feel delayed.
 
 ## 5. Composition Lifecycle
 
@@ -212,6 +231,19 @@ ls -ld \
 
 There should not be competing SwiftType bundles with the same bundle identifier. Do not delete anything until the active path and intended installation are confirmed.
 
+### Observe the actual source changes
+
+With Xcode's command-line tools installed, run a snapshot or a bounded observation:
+
+```bash
+xcrun swift scripts/diagnose-input-sources.swift
+xcrun swift scripts/diagnose-input-sources.swift --watch 60
+```
+
+During the watch, manually reproduce in TextEdit and note which tap felt slow or selected ABC. The script observes only public Text Input Source notifications and reads source identifiers/capabilities. It does **not** read keystrokes, document contents, or clipboard data; change preferences; select/enable/disable sources; or restart services. Ctrl-C stops it early; the maximum duration is 300 seconds.
+
+Notifications identify a source change, not what caused it. Their timestamps alone do not measure physical Caps Lock latency. Compare the selected source with the controller logs below. A Pinyin-to-ABC change with no SwiftType session is not evidence of a stuck SwiftType composition. An enabled-source preference readout is also not authoritative: live TIS registration can report SwiftType enabled even when the readable HIToolbox list omits it.
+
 ### Observe Caps Lock delivery
 
 ```bash
@@ -291,7 +323,15 @@ The most relevant tests are:
 | [`Tests/Input/InputControllerTransparentPredictionTests.swift`](Tests/Input/InputControllerTransparentPredictionTests.swift) | No persistent marked text, mirror disposal, no duplicate insertion, and Chromium candidate behavior. |
 | [`Tests/Input/InputClientPolicyTests.swift`](Tests/Input/InputClientPolicyTests.swift) | Per-app mode ordering and hard exceptions. |
 
-Unit tests cannot prove that a real host application forwards every event through InputMethodKit. Keep the real-application matrix mandatory.
+Additional Caps Lock regressions cover the flag-off edge, repeated on/off events followed by system commits/deactivation, system commit before the Caps Lock callback, zero client-policy calls for an empty composition, and one policy call for an active composition. Synthetic events are passed directly to test controllers, never posted to macOS.
+
+Validate the optional read-only diagnostic separately:
+
+```bash
+bash scripts/release/tests/test_diagnose_input_sources.sh
+```
+
+Unit tests cannot prove that a real host application forwards every event through InputMethodKit or that macOS chooses a particular destination. Keep the real-application matrix mandatory.
 
 ## 11. Code Review Checklist
 
@@ -313,6 +353,7 @@ Reject or revise a switching-related change if any answer is "no":
 
 ## 12. Authoritative References
 
+- [Apple: Write in another language on Mac — switching shortcuts and the last-used Latin source](https://support.apple.com/guide/mac-help/mchlp1406/mac)
 - [Apple: InputMethodKit](https://developer.apple.com/documentation/inputmethodkit)
 - [Apple: IMKInputController](https://developer.apple.com/documentation/inputmethodkit/imkinputcontroller)
 - [Apple: TICapsLockLanguageSwitchCapable](https://developer.apple.com/documentation/bundleresources/information-property-list/ticapslocklanguageswitchcapable)

@@ -88,4 +88,11 @@ if (( found == 0 )); then
     printf 'none found by Spotlight metadata\n'
 fi
 
+printf '\nCaps Lock destination or timing problems\n'
+printf '%s\n' '---------------------------------------'
+printf 'See INPUT_METHOD_SWITCHING.md for the last-used Latin source and per-document settings.\n'
+printf 'Optional live source diagnostic (requires Xcode command-line tools, run from the repository):\n'
+printf '  xcrun swift scripts/diagnose-input-sources.swift --watch 60\n'
+printf 'This observes source changes only; it does not capture keys or change input sources.\n'
+
 printf '\nShare this summary only after reviewing the displayed paths. No typed or document text is collected.\n'

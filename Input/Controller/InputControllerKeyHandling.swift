@@ -22,12 +22,13 @@ extension InputController {
         {
             Log.inputController.info("Caps Lock event received")
             MainActor.assumeIsolated {
-                if state.mirrorsClientText
-                    || Self.usesTransparentPrediction(bundleIdentifier: client.bundleIdentifier())
-                {
+                if state.mirrorsClientText {
                     discardMirroredComposition()
                 } else if !state.compositionBuffer.isEmpty {
                     Log.inputController.info("Committing composition before language switch")
+                    // The commit helper resolves client policy once. Avoid querying the
+                    // cross-process IMK client here as well, and do no client IPC at all
+                    // when Caps Lock arrives with an empty local composition.
                     commitCompositionForLanguageSwitch(client: client)
                 }
             }

@@ -1,5 +1,8 @@
 # SwiftType Improvement Review
 
+> **Archived:** This dated source review records improvements that were subsequently implemented. Use the current [`architecture`](../ARCHITECTURE.md) and [`testing`](../TESTING.md) guides for active contracts.
+
+
 Date: 2026-09-07
 
 Implementation status updated: 2026-09-08

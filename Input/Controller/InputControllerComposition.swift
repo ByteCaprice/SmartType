@@ -12,11 +12,13 @@ extension InputController {
         _ text: String,
         replacing replacementRange: NSRange = Constants.replacementNotFound,
         forceMarkedText: Bool = false,
+        knownRequiresMarkedText: Bool? = nil,
         client: any IMKTextInput,
     ) {
         if !text.isEmpty,
            forceMarkedText
-            || InputClientPolicy.requiresMarkedTextForDirectCommit(client.bundleIdentifier())
+            || (knownRequiresMarkedText
+                ?? InputClientPolicy.requiresMarkedTextForDirectCommit(client.bundleIdentifier()))
         {
             let attrString = NSAttributedString(string: text, attributes: Self.markedTextAttributes)
             client.setMarkedText(
@@ -108,7 +110,7 @@ extension InputController {
 
     /// Commits the prediction at `index` in `state.currentPredictions`.
     func selectCandidateByIndex(_ index: Int, client: any IMKTextInput) {
-        guard index < state.currentPredictions.count else { return }
+        guard state.currentPredictions.indices.contains(index) else { return }
 
         let prediction = state.currentPredictions[index]
         let word = typingRules.preserveCapitalization(

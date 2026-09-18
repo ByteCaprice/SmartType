@@ -1,5 +1,8 @@
 # SwiftType Developer Handoff
 
+> **Archived:** This is a dated development handoff preserved for historical context. For current documentation, start at [`docs/README.md`](../README.md). Build numbers, branches, assignments, and pending work below are not current.
+
+
 Last updated: 2026-09-09
 
 This document supersedes the previous 2026-09-04 handoff. It describes the current source, the local troubleshooting outcome, pending changes, and the recommended next work. Historical observations are explicitly labeled; do not mistake them for fresh checks or current failures.
@@ -10,7 +13,7 @@ SwiftType is an English-only, offline macOS input method built with Swift 6, App
 
 **Current user-visible status:** after the installed guide-compliant build encountered a stale `imklaunchagent` connection refusal, restarting macOS restored normal input and Caps Lock language switching in TextEdit and Spotlight. SwiftType is operating normally. Preserve this known-good routing and input-source metadata.
 
-**Current assignment:** validate the implementation of [SMART_SPACE_IMPLEMENTATION_GUIDE.md](./SMART_SPACE_IMPLEMENTATION_GUIDE.md) on the `smart-space` branch while preserving the completed improvement-review work. Smart Space retains exact-word evidence, prefers strict prefix completions over corrections, and gives Space a visible default action without creating an explicit candidate selection. The latest full isolated suite passes 596 tests (585 existing plus 11 new compatibility regressions). The client-compatibility patch for dropped input in VS Code Monaco, WeCom 5.0.10, and DingTalk 8.5.0 is unit-verified and installed for live validation as build `20260909100351`, with a valid signature and universal `x86_64 arm64` executable matching the current Release build. The user subsequently confirmed that typing works well; the installed process and signature were rechecked during the reliability audit. This is general user confirmation, not a completed per-application acceptance matrix. The user then authorized installation of the defensive Caps Lock stale-buffer fix: build `20260909103324` is now installed, signature-valid and universal, and matches the new Release executable. No SwiftType process was observed immediately after replacement; reopen clients and select SwiftType to reconnect. Real-client, VoiceOver, positioning, and latency checks remain necessary.
+**Current assignment:** validate the implementation of [original Smart Space research](SMART_SPACE_RESEARCH_2026-09.md) on the `smart-space` branch while preserving the completed improvement-review work. Smart Space retains exact-word evidence, prefers strict prefix completions over corrections, and gives Space a visible default action without creating an explicit candidate selection. The latest full isolated suite passes 596 tests (585 existing plus 11 new compatibility regressions). The client-compatibility patch for dropped input in VS Code Monaco, WeCom 5.0.10, and DingTalk 8.5.0 is unit-verified and installed for live validation as build `20260909100351`, with a valid signature and universal `x86_64 arm64` executable matching the current Release build. The user subsequently confirmed that typing works well; the installed process and signature were rechecked during the reliability audit. This is general user confirmation, not a completed per-application acceptance matrix. The user then authorized installation of the defensive Caps Lock stale-buffer fix: build `20260909103324` is now installed, signature-valid and universal, and matches the new Release executable. No SwiftType process was observed immediately after replacement; reopen clients and select SwiftType to reconnect. Real-client, VoiceOver, positioning, and latency checks remain necessary.
 
 ### Reliability audit — 2026-09-09
 
@@ -23,7 +26,7 @@ SwiftType is an English-only, offline macOS input method built with Swift 6, App
 
 Recommended first steps for the next developer:
 
-1. Read this document and `IMPROVEMENT_REVIEW.md`.
+1. Read this document and the archived [improvement review](IMPROVEMENT_REVIEW_2026-09.md).
 2. Check `git status`, inspect the installer-hardening history, and preserve all existing work.
 3. Choose a small, agreed improvement, preferably installation safety or documentation/UX clarity before speculative optimization.
 4. Read the relevant implementation and tests; preserve client-specific input behavior.
@@ -259,7 +262,7 @@ Phase 1–3 verification on 2026-09-08: shell syntax and whitespace checks passe
 
 ## 10. Improvement Review and Next Work
 
-`IMPROVEMENT_REVIEW.md` contains evidence, priorities, validation ideas, and confidence labels. It is a source review, not a benchmark or new runtime test report.
+The archived [improvement review](IMPROVEMENT_REVIEW_2026-09.md) contains evidence, priorities, validation ideas, and confidence labels. It is a source review, not a benchmark or new runtime test report.
 
 | Priority area | Main finding / recommended work |
 | --- | --- |

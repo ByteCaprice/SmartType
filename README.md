@@ -33,12 +33,12 @@ The script builds Release, validates its signature, and transactionally replaces
 
 ### Install a packaged release
 
-Check [Releases](../../releases) for a `.pkg`. The current packaging script produces an ad-hoc-signed app, not a notarized distribution. Only install packages from a source you trust; if macOS blocks installation, review the warning in **System Settings → Privacy & Security** rather than disabling Gatekeeper globally.
+Check the repository's [Releases](https://github.com/ByteCaprice/SmartType/releases) page for a `.pkg`. The current packaging script produces an ad-hoc-signed app, not a notarized distribution. Only install packages from a source you trust; if macOS blocks installation, review the warning in **System Settings → Privacy & Security** rather than disabling Gatekeeper globally.
 
 ### Enable the input source
 
 1. Open **System Settings → Keyboard → Text Input → Edit → +** (labels vary by macOS version).
-2. Add the input source installed by the script. The system-facing label is documented in the [installation guide](./HANDOFF.md#3-installed-application-and-local-environment) and may differ from the repository name.
+2. Add the installed **SwiftType** input source. SmartType is the project name; the technical app and input-source names remain SwiftType for compatibility.
 3. Select that source from the input menu and start typing in a supported text field.
 
 After an update, fully quit and reopen affected apps so they reconnect. A restart is not normally needed. If the input source is missing or sessions will not reconnect, log out and back in after saving your work.
@@ -101,7 +101,7 @@ First reopen the app and verify the selected input source. If a routing change i
 - **Direct input** omits candidates for mixed editor/terminal clients.
 - **Marked-text priming only** adds the compatibility handshake to an already-transparent client.
 
-Use the commands and technical preference identifiers in the [per-app configuration guide](./HANDOFF.md#5-current-client-routing). Choose the appropriate option, not all three, and use the actual IMK client bundle ID.
+Use the commands and technical preference identifiers in the [architecture guide](./docs/ARCHITECTURE.md#client-routing). Choose the appropriate option, not all three, and use the actual IMK client bundle ID.
 
 Finish any composition and quit the affected app **before** changing these preferences, then reopen it. Matching is exact or a dotted helper descendant. A custom direct-input entry overrides terminal passthrough; Edge remains inline and the input method's own UI remains passthrough. These are targeted recovery options, not guaranteed fixes.
 
@@ -132,7 +132,7 @@ This read-only diagnostic reports installation, signature, architecture, process
 
 ### Run tests
 
-Run the shared Xcode test scheme with temporary DerivedData, following the exact project and scheme names in the [build guide](./HANDOFF.md#11-build-and-verification-workflow). Run the isolated shell checks from the repository root:
+Run the shared Xcode test scheme with temporary DerivedData, following the exact commands in the [testing guide](./docs/TESTING.md#automated-verification). Run the isolated shell checks from the repository root:
 
 ```bash
 bash scripts/release/tests/test_diagnose.sh
@@ -141,9 +141,9 @@ bash scripts/release/tests/test_pkg_install.sh
 
 Builds and tests do not replace the installed input method, although Xcode can register generated bundles with LaunchServices.
 
-The **2026-09-09 reliability audit** verified **596 unit tests passing**, **10 installer safety tests passing**, diagnostic checks, and a universal Intel/Apple Silicon Release build. Coverage includes Smart Space, candidate freshness, compatibility commits, stale-state Caps Lock handling, input routing, settings, and privacy-sensitive logging. These are dated verification results, not a guarantee of bug-free typing in every application.
+The **2026-09-18 verification baseline** passed **613 unit tests**, **11 installer safety tests**, diagnostic checks, and a universal Intel/Apple Silicon Release build. Coverage includes Smart Space, candidate freshness, compatibility commits, Caps Lock cleanup and latency safeguards, input routing, settings, and privacy-sensitive logging. These are dated results, not a guarantee of bug-free typing in every application.
 
-Users reported successful typing after the compatibility update. The complete per-client matrix, VoiceOver, multi-display positioning, sleep/wake, and latency measurements remain separate acceptance work. See [Real-client acceptance](./REAL_CLIENT_ACCEPTANCE.md).
+Users reported successful typing after the compatibility update. The complete per-client matrix, VoiceOver, multi-display positioning, sleep/wake, and physical Caps Lock latency remain separate acceptance work. See [Testing and acceptance](./docs/TESTING.md).
 
 ### Architecture
 
@@ -180,7 +180,9 @@ The package is written to `dist/`. It installs the input method in `~/Library/In
 
 ### Further reading
 
-- [Smart Space implementation guide](./SMART_SPACE_IMPLEMENTATION_GUIDE.md)
-- [Input-method switching and compatibility](./INPUT_METHOD_SWITCHING.md)
-- [Real-client acceptance checklist](./REAL_CLIENT_ACCEPTANCE.md)
-- [Developer handoff and verification history](./HANDOFF.md)
+- [Documentation index](./docs/README.md)
+- [Architecture and client routing](./docs/ARCHITECTURE.md)
+- [Smart Space design](./docs/SMART_SPACE.md)
+- [Input-method switching and compatibility](./docs/INPUT_METHOD_SWITCHING.md)
+- [Testing and real-client acceptance](./docs/TESTING.md)
+- [Archived development records](./docs/archive/)

@@ -289,6 +289,42 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertFalse(CandidateWindow.shared.isVisible, "the window must hide after committing")
     }
 
+    func testCandidateSelectionRejectsNegativeIndexWithoutChangingState() {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello", "help"]
+
+        controller.selectCandidateByIndex(-1, client: client)
+
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "hel")
+        XCTAssertEqual(controller.state.currentPredictions, ["hello", "help"])
+    }
+
+    func testCandidateSelectionRejectsEmptyAndEndIndex() {
+        controller.state.compositionBuffer = "hel"
+        controller.selectCandidateByIndex(0, client: client)
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "hel")
+
+        controller.state.currentPredictions = ["hello"]
+        controller.selectCandidateByIndex(controller.state.currentPredictions.count, client: client)
+
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(controller.state.compositionBuffer, "hel")
+        XCTAssertEqual(controller.state.currentPredictions, ["hello"])
+    }
+
+    func testCandidateSelectionAcceptsLastValidIndex() {
+        controller.state.compositionBuffer = "hel"
+        controller.state.currentPredictions = ["hello", "help"]
+
+        controller.selectCandidateByIndex(1, client: client)
+
+        XCTAssertEqual(client.insertedText, ["help "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
     func testReturnWithoutSelectionCommitsTypedTextWithoutTrailingSpace() throws {
         controller.state.compositionBuffer = "hel"
         controller.state.currentPredictions = ["hello"]
@@ -530,6 +566,23 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
+    func testNilBundleIdentifierFallsBackToInlineCompositionWithOneIdentityQuery() throws {
+        client.bundleIdentifierValue = nil
+        let event = try Self.keyDownEvent(characters: "a", keyCode: 0)
+
+        let handled = controller.handle(event, client: client)
+
+        XCTAssertTrue(handled, "unknown clients must keep the safe inline default")
+        XCTAssertEqual(controller.state.compositionBuffer, "a")
+        XCTAssertEqual(client.markedText, ["a"])
+        XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(
+            client.bundleIdentifierCallCount,
+            1,
+            "an inline event must also resolve client identity exactly once"
+        )
+    }
+
     func testDefaultPassthroughAppsDoNotStartComposition() throws {
         for bundleIdentifier in InputController.terminalBundleIdentifiers {
             client.bundleIdentifierValue = bundleIdentifier
@@ -555,6 +608,7 @@ final class InputControllerEventRoutingTests: XCTestCase {
 
         XCTAssertEqual(client.markedText, ["a", " "])
         XCTAssertEqual(client.insertedText, ["a", " "])
+        XCTAssertEqual(client.bundleIdentifierCallCount, 2, "each direct-input event resolves identity once")
         XCTAssertEqual(controller.state.compositionBuffer, "")
         XCTAssertFalse(CandidateWindow.shared.isVisible)
 
@@ -581,6 +635,7 @@ final class InputControllerEventRoutingTests: XCTestCase {
 
         XCTAssertTrue(client.markedText.isEmpty)
         XCTAssertTrue(client.insertedText.isEmpty)
+        XCTAssertEqual(client.bundleIdentifierCallCount, 3, "host-owned commands query identity once each")
         XCTAssertEqual(controller.state.compositionBuffer, "")
     }
 
@@ -605,6 +660,46 @@ final class InputControllerEventRoutingTests: XCTestCase {
         XCTAssertEqual(client.markedText, ["A", "5", "."])
         XCTAssertEqual(client.insertedText, ["A", "5", "."])
         XCTAssertEqual(controller.state.compositionBuffer, "")
+    }
+
+    func testRuntimeDirectInputOverrideCommitsPrimedTextWithOneIdentityQueryPerEvent() throws {
+        // A user-configured direct-input recovery entry must behave exactly like the
+        // built-in VS Code entry: printable text committed once through the primed
+        // mark-then-insert path, with client identity resolved once per key event.
+        // Registered defaults stay process-local (nothing is written to disk), so the
+        // probe is skipped when the host machine configures the same key persistently.
+        guard UserDefaults.standard.object(
+            forKey: InputClientPolicy.extraDirectInputBundleIDsKey
+        ) == nil else {
+            throw XCTSkip(
+                "machine-local direct-input overrides would change this client's routing"
+            )
+        }
+        UserDefaults.standard.register(defaults: [
+            InputClientPolicy.extraDirectInputBundleIDsKey: ["com.swifttype.tests.override.direct"],
+        ])
+        client.bundleIdentifierValue = "com.swifttype.tests.override.direct"
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: "a", keyCode: 0),
+            client: client
+        ))
+        XCTAssertEqual(client.bundleIdentifierCallCount, 1, "one event, one identity query")
+
+        XCTAssertTrue(controller.handle(
+            try Self.keyDownEvent(characters: " ", keyCode: KeyCode.space.rawValue),
+            client: client
+        ))
+        XCTAssertEqual(
+            client.bundleIdentifierCallCount,
+            2,
+            "each direct-input event resolves identity once, including override clients"
+        )
+
+        XCTAssertEqual(client.markedText, ["a", " "])
+        XCTAssertEqual(client.insertedText, ["a", " "])
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertFalse(CandidateWindow.shared.isVisible)
     }
 
     func testVSCodeNavigationAndEscapeKeysStayHostOwned() throws {
@@ -813,7 +908,7 @@ final class InputControllerEventRoutingTests: XCTestCase {
 }
 
 private final class RecordingTextInputClient: NSObject, IMKTextInput {
-    var bundleIdentifierValue = "com.swifttype.tests.recording-client"
+    var bundleIdentifierValue: String? = "com.swifttype.tests.recording-client"
 
     private(set) var insertedText: [String] = []
     private(set) var markedText: [String] = []

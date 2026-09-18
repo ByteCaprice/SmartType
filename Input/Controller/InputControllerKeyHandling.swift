@@ -65,7 +65,10 @@ extension InputController {
     ) -> Bool {
         // Terminal line editors and raw-mode TUIs need every key unchanged. IMK cannot
         // distinguish a shell prompt from programs running inside the same terminal.
-        switch InputClientPolicy.mode(forBundleIdentifier: client.bundleIdentifier()) {
+        // Resolve client identity once for this synchronous event. Transparent/direct
+        // helpers reuse it but delayed work performs fresh client validation.
+        let bundleIdentifier = client.bundleIdentifier()
+        switch InputClientPolicy.mode(forBundleIdentifier: bundleIdentifier) {
         case .passthrough:
             return false
         case .directInput:
@@ -73,6 +76,9 @@ extension InputController {
                 keyCode: keyCode,
                 modifierFlags: modifierFlags,
                 characters: characters,
+                knownRequiresMarkedText: InputClientPolicy.requiresMarkedTextForDirectCommit(
+                    bundleIdentifier
+                ),
                 client: client,
             )
         case .transparentPrediction:
@@ -80,6 +86,10 @@ extension InputController {
                 keyCode: keyCode,
                 modifierFlags: modifierFlags,
                 characters: characters,
+                bundleIdentifier: bundleIdentifier,
+                knownRequiresMarkedText: InputClientPolicy.requiresMarkedTextForDirectCommit(
+                    bundleIdentifier
+                ),
                 client: client,
             )
         case .inline:
@@ -150,6 +160,7 @@ extension InputController {
         keyCode: UInt16,
         modifierFlags: NSEvent.ModifierFlags,
         characters: String?,
+        knownRequiresMarkedText: Bool,
         client: any IMKTextInput,
     ) -> Bool {
         let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -174,7 +185,11 @@ extension InputController {
             return false
         }
 
-        insertTextForCompatibility(String(character), client: client)
+        insertTextForCompatibility(
+            String(character),
+            knownRequiresMarkedText: knownRequiresMarkedText,
+            client: client
+        )
         return true
     }
 
@@ -275,9 +290,13 @@ extension InputController {
     }
 
     /// Returns the range of the auto-inserted trailing space preceding the cursor, or `nil` if not found.
-    func autoInsertedSpaceRange(client: any IMKTextInput) -> NSRange? {
+    func autoInsertedSpaceRange(
+        client: any IMKTextInput,
+        knownBundleIdentifier: String? = nil,
+    ) -> NSRange? {
         let selection = client.selectedRange()
-        guard state.autoInsertedSpaceClientBundleID == client.bundleIdentifier(),
+        let bundleIdentifier = knownBundleIdentifier ?? client.bundleIdentifier()
+        guard state.autoInsertedSpaceClientBundleID == bundleIdentifier,
               let expectedCursor = state.autoInsertedSpaceExpectedCursor,
               selection.location == expectedCursor,
               selection.length == 0,
@@ -296,10 +315,11 @@ extension InputController {
     func recordAutoInsertedTrailingSpace(
         client: any IMKTextInput,
         expectedCursor: Int? = nil,
+        knownBundleIdentifier: String? = nil,
     ) {
         let selection = client.selectedRange()
         state.didAutoInsertTrailingSpace = true
-        state.autoInsertedSpaceClientBundleID = client.bundleIdentifier()
+        state.autoInsertedSpaceClientBundleID = knownBundleIdentifier ?? client.bundleIdentifier()
         state.autoInsertedSpaceExpectedCursor = expectedCursor
             ?? (selection.location == NSNotFound ? nil : selection.location)
     }

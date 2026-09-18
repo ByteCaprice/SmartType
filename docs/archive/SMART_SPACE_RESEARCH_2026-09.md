@@ -1,5 +1,8 @@
 # Smart Space: Technical Research and Implementation Guide
 
+> **Archived:** This is the original Smart Space research and implementation plan. Smart Space is now implemented. See the current [`Smart Space design`](../SMART_SPACE.md) and [`testing guide`](../TESTING.md).
+
+
 Research date: 2026-09-09. Audience: the next implementation agent, including GPT-5.6-sol.
 
 **Status: implemented on the `smart-space` branch and installed for user evaluation on 2026-09-09 as client-compatibility build `20260909100351`; automated verification is recorded below. Real-client validation remains pending.**

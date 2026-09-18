@@ -1,5 +1,8 @@
 # SwiftType Real-Client Acceptance Checklist
 
+> **Archived:** This is the pre-consolidation acceptance checklist. Use the current [`testing guide`](../TESTING.md).
+
+
 Use this checklist after installing a new build. Unit tests cannot reproduce every InputMethodKit host behavior.
 
 ## Before testing

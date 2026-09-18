@@ -47,7 +47,7 @@ The read-only diagnostic below distinguishes the **selected input source** from 
 
 ## 3. Required Bundle Metadata
 
-The following values in [`Info.plist`](Info.plist) are part of the switching contract:
+The following values in [`Info.plist`](../Info.plist) are part of the switching contract:
 
 ```xml
 <key>TICapsLockLanguageSwitchCapable</key>
@@ -68,11 +68,11 @@ The following values in [`Info.plist`](Info.plist) are part of the switching con
 
 These values tell macOS that SwiftType is a Latin input source, supports Caps Lock language switching, and exposes the expected InputMethodKit connection and controller.
 
-Do not remove or rename these keys as an application-specific workaround. [`Tests/App/ConstantsTests.swift`](Tests/App/ConstantsTests.swift) protects `TICapsLockLanguageSwitchCapable`, `TISInputSourceID`, and `TISIntendedLanguage`; the connection, controller, and repertoire keys still require code-review verification.
+Do not remove or rename these keys as an application-specific workaround. [`Tests/App/ConstantsTests.swift`](../Tests/App/ConstantsTests.swift) protects `TICapsLockLanguageSwitchCapable`, `TISInputSourceID`, and `TISIntendedLanguage`; the connection, controller, and repertoire keys still require code-review verification.
 
 ## 4. The Critical Event Contract
 
-[`Input/Controller/InputControllerKeyHandling.swift`](Input/Controller/InputControllerKeyHandling.swift) must request both key-down and flags-changed events:
+[`Input/Controller/InputControllerKeyHandling.swift`](../Input/Controller/InputControllerKeyHandling.swift) must request both key-down and flags-changed events:
 
 ```swift
 override func recognizedEvents(_ sender: Any!) -> Int {
@@ -87,9 +87,7 @@ if event.type == .flagsChanged, event.keyCode == 0x39,
    let client = sender as? (any IMKTextInput)
 {
     MainActor.assumeIsolated {
-        if state.mirrorsClientText
-            || Self.usesTransparentPrediction(bundleIdentifier: client.bundleIdentifier())
-        {
+        if state.mirrorsClientText {
             discardMirroredComposition()
         } else if !state.compositionBuffer.isEmpty {
             commitCompositionForLanguageSwitch(client: client)
@@ -161,7 +159,7 @@ Do not remove native terminal applications from passthrough merely to make candi
 
 ## 6. Per-Application Routing
 
-[`Input/InputClientPolicy.swift`](Input/InputClientPolicy.swift) resolves modes in this order:
+[`Input/InputClientPolicy.swift`](../Input/InputClientPolicy.swift) resolves modes in this order:
 
 1. Missing bundle identifier: inline.
 2. SwiftType's own process: passthrough.
@@ -318,10 +316,10 @@ The most relevant tests are:
 
 | Test file | Contract |
 |---|---|
-| [`Tests/App/ConstantsTests.swift`](Tests/App/ConstantsTests.swift) | Required Info.plist language and Caps Lock metadata. |
-| [`Tests/Input/InputControllerEventRoutingTests.swift`](Tests/Input/InputControllerEventRoutingTests.swift) | `.flagsChanged`, Caps Lock passthrough, inline commit, deactivation, Edge, terminals, and VS Code. |
-| [`Tests/Input/InputControllerTransparentPredictionTests.swift`](Tests/Input/InputControllerTransparentPredictionTests.swift) | No persistent marked text, mirror disposal, no duplicate insertion, and Chromium candidate behavior. |
-| [`Tests/Input/InputClientPolicyTests.swift`](Tests/Input/InputClientPolicyTests.swift) | Per-app mode ordering and hard exceptions. |
+| [`Tests/App/ConstantsTests.swift`](../Tests/App/ConstantsTests.swift) | Required Info.plist language and Caps Lock metadata. |
+| [`Tests/Input/InputControllerEventRoutingTests.swift`](../Tests/Input/InputControllerEventRoutingTests.swift) | `.flagsChanged`, Caps Lock passthrough, inline commit, deactivation, Edge, terminals, and VS Code. |
+| [`Tests/Input/InputControllerTransparentPredictionTests.swift`](../Tests/Input/InputControllerTransparentPredictionTests.swift) | No persistent marked text, mirror disposal, no duplicate insertion, and Chromium candidate behavior. |
+| [`Tests/Input/InputClientPolicyTests.swift`](../Tests/Input/InputClientPolicyTests.swift) | Per-app mode ordering and hard exceptions. |
 
 Additional Caps Lock regressions cover the flag-off edge, repeated on/off events followed by system commits/deactivation, system commit before the Caps Lock callback, zero client-policy calls for an empty composition, and one policy call for an active composition. Synthetic events are passed directly to test controllers, never posted to macOS.
 

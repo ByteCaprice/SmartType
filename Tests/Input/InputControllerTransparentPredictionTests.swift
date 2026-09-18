@@ -72,6 +72,63 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(client.attributesQueryCount, 0)
     }
 
+    func testFirstTransparentLetterQueriesClientIdentityOnce() throws {
+        XCTAssertTrue(try type("h", keyCode: 4))
+
+        XCTAssertEqual(
+            client.bundleIdentifierQueryCount,
+            1,
+            "one key event should reuse its resolved client identity"
+        )
+    }
+
+    func testSubsequentTransparentLetterQueriesClientIdentityOnce() throws {
+        XCTAssertTrue(try type("h", keyCode: 4))
+        let queriesBeforeSecondLetter = client.bundleIdentifierQueryCount
+
+        XCTAssertTrue(try type("e", keyCode: 14))
+
+        XCTAssertEqual(
+            client.bundleIdentifierQueryCount - queriesBeforeSecondLetter,
+            1,
+            "stale-mirror validation and insertion should reuse the event identity"
+        )
+    }
+
+    func testRuntimeTransparentOverrideResolvesIdentityOncePerPrimedLetter() throws {
+        // An override-configured transparent client must match built-in primed
+        // transparent clients (WeCom/DingTalk): identity resolved once per key event.
+        // Registered defaults stay process-local; skip when the host machine
+        // persistently configures the same key.
+        guard UserDefaults.standard.object(
+            forKey: InputClientPolicy.extraTransparentPredictionBundleIDsKey
+        ) == nil else {
+            throw XCTSkip(
+                "machine-local transparent-prediction overrides would change this client's routing"
+            )
+        }
+        UserDefaults.standard.register(defaults: [
+            InputClientPolicy.extraTransparentPredictionBundleIDsKey: [
+                "com.swifttype.tests.override.transparent",
+            ],
+        ])
+        client.bundleIdentifierValue = "com.swifttype.tests.override.transparent"
+
+        XCTAssertTrue(try type("h", keyCode: 4))
+        XCTAssertEqual(client.bundleIdentifierQueryCount, 1, "one event, one identity query")
+        XCTAssertEqual(
+            client.markedText,
+            ["h"],
+            "a transparent-prediction override entry also primes marked text"
+        )
+        XCTAssertEqual(client.insertedText, ["h"])
+        XCTAssertEqual(controller.state.compositionBuffer, "h")
+
+        XCTAssertTrue(try type("e", keyCode: 14))
+        XCTAssertEqual(client.bundleIdentifierQueryCount, 2)
+        XCTAssertEqual(controller.state.compositionBuffer, "he")
+    }
+
     // MARK: - Deferred candidate refresh (Chromium typing-stall fix)
 
     func testDeferredRefreshStillShowsCandidatesAfterDebounce() async throws {
@@ -88,6 +145,11 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         )
         XCTAssertEqual(client.windowLevelQueryCount, 1)
         XCTAssertEqual(client.attributesQueryCount, 1)
+        XCTAssertEqual(
+            client.bundleIdentifierQueryCount,
+            2,
+            "deferred work must perform a fresh client-identity validation"
+        )
         XCTAssertTrue(CandidateWindow.shared.isVisible, "the candidate window must appear after the debounce")
     }
 
@@ -201,6 +263,31 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertFalse(controller.state.mirrorsClientText)
     }
 
+    func testTransparentCandidateSelectionRejectsInvalidIndicesWithoutMutation() throws {
+        try type("h", keyCode: 4)
+        try type("e", keyCode: 14)
+        try type("l", keyCode: 37)
+        controller.state.currentPredictions = ["hello", "help"]
+
+        controller.selectTransparentCandidateByIndex(-1, client: client)
+        controller.selectTransparentCandidateByIndex(2, client: client)
+
+        XCTAssertEqual(client.insertedText, ["h", "e", "l"], "invalid indices must not insert")
+        XCTAssertTrue(client.markedText.isEmpty, "invalid indices must not prime marked text")
+        XCTAssertEqual(controller.state.compositionBuffer, "hel")
+        XCTAssertTrue(controller.state.mirrorsClientText)
+        XCTAssertEqual(controller.state.currentPredictions, ["hello", "help"])
+        XCTAssertEqual(controller.state.compositionClientBundleID, "com.google.Chrome")
+
+        // A valid index still commits through the same selection path.
+        controller.selectTransparentCandidateByIndex(1, client: client)
+
+        XCTAssertEqual(client.insertedText, ["h", "e", "l", "p "])
+        XCTAssertEqual(client.document, "help ")
+        XCTAssertEqual(controller.state.compositionBuffer, "")
+        XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+    }
+
     func testWeComLettersUseTemporaryMarkedTextPriming() throws {
         client.bundleIdentifierValue = "com.tencent.WeWorkMac"
         try type("h", keyCode: 4)
@@ -209,6 +296,7 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(controller.state.compositionBuffer, "he")
         XCTAssertEqual(client.markedText, ["h", "e"])
         XCTAssertEqual(client.insertedText, ["h", "e"])
+        XCTAssertEqual(client.bundleIdentifierQueryCount, 2, "primed events resolve identity once each")
         XCTAssertEqual(client.document, "he")
         XCTAssertEqual(controller.state.expectedCursor, 2)
     }
@@ -256,6 +344,11 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(client.markedText, ["t", "e", "h", "the "])
         XCTAssertEqual(controller.state.compositionBuffer, "")
         XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+        XCTAssertEqual(
+            client.bundleIdentifierQueryCount,
+            4,
+            "three primed letters plus the Space commit each resolve identity once"
+        )
     }
 
     func testDingTalkUsesPrimingForLettersPunctuationAndSpace() throws {
@@ -348,6 +441,11 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(client.insertedText, ["a", "p", "p", "l", "y "])
         XCTAssertEqual(client.document, "apply ")
         XCTAssertTrue(controller.state.didAutoInsertTrailingSpace)
+        XCTAssertEqual(
+            client.bundleIdentifierQueryCount,
+            5,
+            "four letters plus the Space commit each resolve identity exactly once"
+        )
     }
 
     func testSpacePreservesTransparentCompleteWord() throws {
@@ -585,6 +683,11 @@ final class InputControllerTransparentPredictionTests: XCTestCase {
         XCTAssertEqual(client.markedReplacementRanges.last, NSRange(location: 1, length: 1))
         XCTAssertEqual(client.document, "h.")
         XCTAssertFalse(controller.state.didAutoInsertTrailingSpace)
+        XCTAssertEqual(
+            client.bundleIdentifierQueryCount,
+            3,
+            "letter, auto-space, and punctuation replacement each resolve identity once"
+        )
     }
 
     func testPunctuationDoesNotReplaceSpaceOwnedByAnotherClient() throws {
@@ -768,6 +871,7 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     private(set) var markedReplacementRanges: [NSRange] = []
     private(set) var windowLevelQueryCount = 0
     private(set) var attributesQueryCount = 0
+    private(set) var bundleIdentifierQueryCount = 0
     private var pendingMarkedReplacementRange: NSRange?
 
     func insertText(_ string: Any, replacementRange: NSRange) {
@@ -845,7 +949,10 @@ private final class RecordingTextInputClient: NSObject, IMKTextInput {
     func overrideKeyboard(withKeyboardNamed _: String!) {}
     func selectMode(_: String!) {}
     func supportsUnicode() -> Bool { true }
-    func bundleIdentifier() -> String! { bundleIdentifierValue }
+    func bundleIdentifier() -> String! {
+        bundleIdentifierQueryCount += 1
+        return bundleIdentifierValue
+    }
     func windowLevel() -> CGWindowLevel {
         windowLevelQueryCount += 1
         return 0

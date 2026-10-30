@@ -10,6 +10,7 @@
   [![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](https://www.swift.org/)
   [![Offline](https://img.shields.io/badge/predictions-fully_offline-2ea44f)](#privacy-by-design)
   [![InputMethodKit](https://img.shields.io/badge/native-InputMethodKit-007AFF)](https://developer.apple.com/documentation/inputmethodkit)
+  [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
   [Install](#install) · [How it feels](#how-it-feels) · [Compatibility](#app-compatibility) · [Contribute](#contributing)
 </div>
@@ -226,6 +227,10 @@ Please avoid including private text from your documents or conversations. Before
 - [Smart Space behavior](./docs/SMART_SPACE.md)
 - [Input-method switching](./docs/INPUT_METHOD_SWITCHING.md)
 - [Testing and acceptance](./docs/TESTING.md)
+
+## License
+
+SmartType is available under the [MIT License](./LICENSE).
 
 ## Acknowledgements
 

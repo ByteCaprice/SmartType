@@ -1,188 +1,236 @@
 <div align="center">
-  <img src="./Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png"
-       width="150" height="150" alt="SmartType icon">
+  <img src="./Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png" width="144" height="144" alt="SmartType app icon">
 
-  <h1>SmartType</h1>
-  <p>Native English completions for macOS. Smart Space. Fully offline.</p>
+  # SmartType
+
+  **A small, native typing assistant for macOS.**<br>
+  Thoughtful English completions, safer corrections, and no cloud required.
+
+  [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-111111?logo=apple)](https://www.apple.com/macos/)
+  [![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](https://www.swift.org/)
+  [![Offline](https://img.shields.io/badge/predictions-fully_offline-2ea44f)](#privacy-by-design)
+  [![InputMethodKit](https://img.shields.io/badge/native-InputMethodKit-007AFF)](https://developer.apple.com/documentation/inputmethodkit)
+
+  [Install](#install) · [How it feels](#how-it-feels) · [Compatibility](#app-compatibility) · [Contribute](#contributing)
 </div>
 
-SmartType is a lightweight macOS input method that suggests English word completions and corrections near your cursor. It uses the system spell checker—not a cloud service—and lets you choose when to accept a suggestion.
+---
 
-## Highlights
+SmartType brings a lightweight candidate window to the place where you are already typing. It uses macOS's built-in spell checker to suggest completions and corrections, then lets **you** decide what gets committed.
 
-- **Smart Space:** keep an exact dictionary match, or accept the visible default completion or correction. Uncertain text falls back to keeping what you typed.
-- **Explicit alternatives:** choose a numbered candidate rather than accepting the default.
-- **Clear indicators:** a spacebar icon marks the default candidate; **✓ Exact match** or **✓ Keep typed** explains literal preservation.
-- **Native candidate window:** choose a vertical list or expandable grid, with customizable colors, opacity, and dimensions.
-- **Local processing:** predictions use macOS `NSSpellChecker`. No network predictions or typed-text telemetry.
-- **Per-app compatibility:** separate input modes for native editors, browsers, terminals, and clients that need a compatibility commit.
+No account. No language model download. No typed text sent to a server.
 
-Built with Swift 6, AppKit, and [InputMethodKit](https://developer.apple.com/documentation/inputmethodkit). Requires **macOS 13 or later**; building from source requires Xcode.
+> [!NOTE]
+> SmartType is an evolving macOS input method. Input behavior varies between applications, so real-world compatibility reports are especially valuable.
 
-## Install
+## Why SmartType?
 
-### Build from source
+- **Smart Space** — press Space to accept a clear completion or correction; exact and uncertain words stay exactly as typed.
+- **You stay in control** — select a numbered alternative, navigate with the keyboard, or press Return to preserve your original letters.
+- **Native macOS experience** — built with Swift, AppKit, `NSSpellChecker`, and InputMethodKit.
+- **Private by design** — prediction happens locally using the dictionaries already on your Mac.
+- **Made for different editors** — tailored modes handle native apps, Chromium browsers, VS Code, terminals, and compatibility-sensitive clients.
+- **Customizable** — choose a vertical list or grid and adjust colors, opacity, rows, columns, and sizing.
 
-From the repository directory:
+## How it feels
 
-```bash
-./scripts/install.sh
+Type a partial word and SmartType presents nearby candidates:
+
+```text
+appl  →  apple
+coord →  coordinate
 ```
 
-The script builds Release, validates its signature, and transactionally replaces the installed app in `~/Library/Input Methods/`. Failed replacement validation restores the previous installation.
+The candidate window always explains what Space will do:
 
-### Install a packaged release
-
-Check the repository's [Releases](https://github.com/ByteCaprice/SmartType/releases) page for a `.pkg`. The current packaging script produces an ad-hoc-signed app, not a notarized distribution. Only install packages from a source you trust; if macOS blocks installation, review the warning in **System Settings → Privacy & Security** rather than disabling Gatekeeper globally.
-
-### Enable the input source
-
-1. Open **System Settings → Keyboard → Text Input → Edit → +** (labels vary by macOS version).
-2. Add the installed **SmartType** input source. The underlying app bundle, target, and bundle identifier retain the `SwiftType` technical name for compatibility.
-3. Select SmartType from the input menu and start typing in a supported text field.
-
-After an update, fully quit and reopen affected apps so they reconnect. A restart is not normally needed. If the input source is missing or sessions will not reconnect, log out and back in after saving your work.
-
-## Typing with Smart Space
-
-A visible candidate list starts with **no explicit selection**. Space and Return intentionally behave differently:
-
-| Indicator or action | Meaning |
+| Indicator | Space action |
 |---|---|
-| Spacebar icon beside a candidate | Space accepts that fresh, visible default unless you explicitly selected another candidate |
-| **✓ Exact match** | Space keeps the typed word because exact completion evidence exists |
-| **✓ Keep typed** | Space keeps the typed text conservatively |
-| Explicit candidate selection | Your selection takes priority over the Smart Space default |
-| Return without a selection | Preserves your original letters instead of automatically completing them |
+| Spacebar icon beside a candidate | Accept that visible suggestion |
+| **✓ Exact match** | Keep the word you typed |
+| **✓ Keep typed** | Preserve uncertain text conservatively |
+| Explicit selection | Accept your chosen candidate |
 
-Space adds a trailing space when committing a word. Predictions depend on the local macOS dictionary and learned-word state; they are not guaranteed to match another Mac. Prefix completions rank ahead of corrections, and fuzzy guesses remain explicit choices rather than automatic replacements.
+Return and Space intentionally differ: **Space** may accept the visible Smart Space target and adds a trailing space, while **Return** preserves your original letters unless you explicitly selected a candidate.
 
-### Candidate controls in inline mode
-
-The default layout is **Vertical List**:
+### Keyboard controls
 
 | Key | Action while candidates are visible |
 |---|---|
-| `1`–`7` | Accept the correspondingly numbered populated candidate slot |
-| `↓`, `Tab`, `→` | Activate the first candidate, then move down |
-| `↑`, `←` | Move up |
-| `Space` | Accept the explicit selection or Smart Space default, with a trailing space |
-| `Return` | Commit the selection or original letters without a space; this Return is consumed |
-| `Escape` | Preserve literal text and dismiss candidates |
+| `1`–`7` | Accept the corresponding populated candidate |
+| `↓`, `Tab`, `→` | Activate the first candidate, then move forward |
+| `↑`, `←` | Move backward |
+| `Space` | Accept the selection or Smart Space target, then add a space |
+| `Return` | Commit the selection or original text without a space |
+| `Escape` | Keep literal text and dismiss candidates |
 
-With the panel hidden, Return commits any pending inline text and passes through to the app. Shifted digits remain ordinary typing, not candidate shortcuts.
+Grid layout adds row and column navigation. Shifted digits remain ordinary typing.
 
-For **Grid** layout, `↓` activates/expands/moves down, `↑` moves up or collapses at the top, and `Tab`/`→`/`←` move between columns. Number shortcuts refer to the active row.
+## Install
 
-## Application compatibility
+### Requirements
 
-Text fields do not all implement macOS input methods the same way—even an editor and terminal in one app can behave differently. SmartType uses the actual input client's bundle identifier to choose a mode:
+- macOS 13 Ventura or later
+- Xcode for source builds
 
-| Mode | Examples | Behavior |
+### Build and install from source
+
+Clone the repository and run the installer:
+
+```bash
+git clone https://github.com/ByteCaprice/SmartType.git
+cd SmartType
+./scripts/install.sh
+```
+
+The script creates a Release build, verifies its signature, and safely installs it to:
+
+```text
+~/Library/Input Methods/SwiftType.app
+```
+
+The technical bundle and executable keep the historical `SwiftType` name for compatibility; the product shown in macOS is **SmartType**.
+
+### Enable SmartType
+
+1. Open **System Settings → Keyboard → Text Input → Edit → +**.
+2. Add **SmartType** to your input sources.
+3. Select it from the macOS input menu and begin typing in a supported field.
+
+After updating, quit and reopen affected apps so they reconnect to the input method. If SmartType does not appear, log out and back in after saving your work.
+
+### Packaged releases
+
+When a packaged build is available, download it from [GitHub Releases](https://github.com/ByteCaprice/SmartType/releases). Current packages are ad-hoc signed rather than Apple-notarized, so macOS may ask you to confirm the installation in **System Settings → Privacy & Security**. Never disable Gatekeeper globally.
+
+## App compatibility
+
+macOS applications do not all communicate with input methods in the same way. SmartType selects a policy using the active input client's bundle identifier.
+
+| Mode | Typical apps | Experience |
 |---|---|---|
-| **Inline** | TextEdit, Safari, Xcode, Edge; default for other clients | Marked-text composition with candidates and navigation |
-| **Transparent prediction** | Chrome, Brave, Vivaldi, Opera, WeCom/企业微信, DingTalk/钉钉 | Immediate text commits, with a local mirror for predictions |
-| **Direct input** | VS Code | Compatibility commits for printable text; no candidate list |
-| **Passthrough** | Terminal, iTerm2, Ghostty, other configured terminal families | Keys remain host-owned; no predictions |
+| **Inline** | TextEdit, Safari, Xcode, Edge | Marked-text composition with full candidates and navigation |
+| **Transparent prediction** | Chrome, Brave, Vivaldi, Opera, WeCom, DingTalk | Immediate commits plus a local prediction mirror |
+| **Direct input** | VS Code | Compatibility-focused typing without candidates |
+| **Passthrough** | Terminal, iTerm2, Ghostty | Host-owned keys with no predictions |
 
-In transparent mode, Space and number shortcuts can accept candidates. Arrows and Tab dismiss candidates and belong to the app. Return without an explicit selection remains the app's submit/newline key. Corrections replace existing text only when the target can be verified; unsafe replacements fall back to literal typing.
+Compatibility is necessarily imperfect: an editor and terminal inside the same app can behave differently, and application updates can change text-input behavior. See the [architecture and client-routing guide](./docs/ARCHITECTURE.md#client-routing) for targeted recovery settings and implementation details.
 
-WeCom, DingTalk, and VS Code use a temporary `setMarkedText` → `insertText` handshake instead of leaving a persistent composition. This addresses observed dropped-input failures, but does not establish universal compatibility with every host or future update.
+> SmartType currently requests the US keyboard layout while active. Other layouts have not yet been fully validated.
 
-VS Code's editor and integrated terminal share the direct-input policy. Command, Control, Option, Backspace, Return, Escape, arrows, and Tab remain host-owned. Option-generated characters, dead keys, and raw-mode terminal programs still deserve real-client testing.
+## Privacy by design
 
-Caps Lock / 中英 switching remains owned by macOS. The input method currently requests the **US keyboard layout** while active; other keyboard layouts are not yet validated.
+SmartType uses the local macOS `NSSpellChecker` and does not need a prediction service.
 
-### Recovering a newly incompatible app
+- Typed words and surrounding document text are not sent to SmartType servers—there are no SmartType servers.
+- Predictions use the dictionaries and learned-word state on your Mac.
+- Diagnostics report installation, process, signature, architecture, and compatibility configuration—not typed or document text.
+- Performance signposts intentionally exclude words, prefixes, candidates, surrounding text, and file paths.
 
-First reopen the app and verify the selected input source. If a routing change is needed, targeted preferences allow recovery without rebuilding:
-
-- **Transparent prediction with compatibility commits** keeps suggestions.
-- **Direct input** omits candidates for mixed editor/terminal clients.
-- **Marked-text priming only** adds the compatibility handshake to an already-transparent client.
-
-Use the commands and technical preference identifiers in the [architecture guide](./docs/ARCHITECTURE.md#client-routing). Choose the appropriate option, not all three, and use the actual IMK client bundle ID.
-
-Finish any composition and quit the affected app **before** changing these preferences, then reopen it. Matching is exact or a dotted helper descendant. A custom direct-input entry overrides terminal passthrough; Edge remains inline and the input method's own UI remains passthrough. These are targeted recovery options, not guaranteed fixes.
-
-## Settings
-
-Open **Settings** from the `EN` menu-bar item. Appearance controls include layout, colors, opacity, grid columns (4–6), and rows (3–5), with a preview and reset controls. About shows version information.
-
-Prefer the Settings reset controls for appearance changes. Deleting the whole preference domain also removes per-app recovery settings.
-
-## Troubleshooting
-
-| Symptom | First steps |
-|---|---|
-| No text after an update | Confirm the installed input source is selected; fully quit and reopen the affected app |
-| Input source missing | Add the installed input source in Keyboard settings; log out/in if registration has not refreshed |
-| One app fails, others work | Record the app version and field type; editor and integrated terminal results can differ |
-| Missing or duplicated characters | Note the keys and app involved; avoid speculative insertion retries or global routing changes |
-| Unexpected candidate acceptance | Check the spacebar indicator; Return preserves literal text when nothing is explicitly selected |
-| Suspected old or duplicate installation | Run the diagnostic below before removing anything or resetting services |
+Run the read-only diagnostic with:
 
 ```bash
 ./scripts/diagnose.sh
 ```
 
-This read-only diagnostic reports installation, signature, architecture, process, and compatibility preferences. It does not restart services, change input sources, unregister bundles, or collect typed/document text. Review paths before sharing its output.
+## Settings
 
-## Development and verification
+Choose **Settings** from the `EN` menu-bar item to customize:
 
-### Run tests
+- vertical-list or grid presentation;
+- colors and opacity;
+- candidate window dimensions;
+- grid rows and columns;
+- theme preview and reset controls.
 
-Run the shared Xcode test scheme with temporary DerivedData, following the exact commands in the [testing guide](./docs/TESTING.md#automated-verification). Run the isolated shell checks from the repository root:
+Appearance settings and per-app compatibility preferences are stored locally.
+
+## Development
+
+### Run the test suite
+
+```bash
+DERIVED_DATA="$(mktemp -d /tmp/SwiftTypeTests.XXXXXX)"
+RESULT_BUNDLE="$(mktemp -d /tmp/SwiftTypeResults.XXXXXX)/Tests.xcresult"
+
+xcodebuild \
+  -project SwiftType.xcodeproj \
+  -scheme SwiftType \
+  -configuration Debug \
+  -destination 'platform=macOS' \
+  -derivedDataPath "$DERIVED_DATA" \
+  -resultBundlePath "$RESULT_BUNDLE" \
+  test
+```
+
+Run the installer and diagnostic safety checks separately:
 
 ```bash
 bash scripts/release/tests/test_diagnose.sh
+bash scripts/release/tests/test_diagnose_input_sources.sh
 bash scripts/release/tests/test_pkg_install.sh
 ```
 
-Builds and tests do not replace the installed input method, although Xcode can register generated bundles with LaunchServices.
+See [Testing and acceptance](./docs/TESTING.md) for the latest recorded baseline, real-client matrix, accessibility checks, and release verification steps.
 
-The **2026-09-18 verification baseline** passed **613 unit tests**, **11 installer safety tests**, diagnostic checks, and a universal Intel/Apple Silicon Release build. Coverage includes Smart Space, candidate freshness, compatibility commits, Caps Lock cleanup and latency safeguards, input routing, settings, and privacy-sensitive logging. These are dated results, not a guarantee of bug-free typing in every application.
-
-Users reported successful typing after the compatibility update. The complete per-client matrix, VoiceOver, multi-display positioning, sleep/wake, and physical Caps Lock latency remain separate acceptance work. See [Testing and acceptance](./docs/TESTING.md).
-
-### Architecture
+### Architecture at a glance
 
 ```text
 macOS → IMKServer → InputController
-                    ├── InputClientPolicy — per-client routing
-                    ├── LatinKeyHandler — inline English input
-                    ├── InputControllerTransparentPrediction — mirrored text
-                    ├── SpellCheckPredictor — local dictionary evidence
-                    ├── SmartSpacePolicy — literal or candidate default
-                    └── CandidateWindow — presentation and selection
+                    ├── InputClientPolicy
+                    ├── LatinKeyHandler
+                    ├── Transparent Prediction
+                    ├── SpellCheckPredictor
+                    ├── SmartSpacePolicy
+                    └── CandidateWindow
 ```
 
-Application state is main-actor isolated. Transparent prediction refreshes are debounced and revalidated before display; spell-checking remains local and runs on the main actor.
-
-| Directory | Purpose |
+| Directory | Responsibility |
 |---|---|
-| `App/` | Startup, menu bar, constants, logging |
-| `Input/` | Client routing, key handling, composition, state |
-| `Prediction/` | Spell-check evidence and Smart Space policy |
-| `Rules/` | English punctuation and capitalization |
-| `UI/` | Candidate window, settings, themes |
+| `App/` | Startup, menu bar, constants, and privacy-aware logging |
+| `Input/` | Client routing, keyboard handling, composition, and state |
+| `Prediction/` | Local spell-check evidence and Smart Space policy |
+| `Rules/` | English punctuation and capitalization behavior |
+| `UI/` | Candidate window, settings, and themes |
 | `Tests/` | Automated regression coverage |
-| `scripts/` | Installation, diagnostics, release packaging |
+| `scripts/` | Installation, diagnostics, and release packaging |
 
-### Package a release
+For a deeper tour, read [Architecture](./docs/ARCHITECTURE.md) and [Smart Space design](./docs/SMART_SPACE.md).
+
+### Build a package
 
 ```bash
-./scripts/release/release.sh        # timestamp-based version
+./scripts/release/release.sh        # timestamp version
 ./scripts/release/release.sh 1.2.0  # explicit version
 ```
 
-The package is written to `dist/`. It installs the input method in `~/Library/Input Methods/` and creates an application symlink in `/Applications/`. Packaging and system identifiers remain as defined in the existing build scripts.
+The resulting `.pkg` is written to `dist/`.
 
-### Further reading
+## Contributing
+
+SmartType gets better through real typing. Bug reports, compatibility findings, focused fixes, tests, and documentation improvements are welcome.
+
+A useful compatibility report includes:
+
+- macOS and application versions;
+- the field type, such as editor, address bar, terminal, or chat composer;
+- the exact key sequence;
+- what candidates were visible;
+- what happened and what you expected.
+
+Please avoid including private text from your documents or conversations. Before opening a pull request, run the focused tests for your change and keep input-client work narrowly scoped—fixing one application globally can easily break another.
+
+## Documentation
 
 - [Documentation index](./docs/README.md)
 - [Architecture and client routing](./docs/ARCHITECTURE.md)
-- [Smart Space design](./docs/SMART_SPACE.md)
-- [Input-method switching and compatibility](./docs/INPUT_METHOD_SWITCHING.md)
-- [Testing and real-client acceptance](./docs/TESTING.md)
-- [Archived development records](./docs/archive/)
+- [Smart Space behavior](./docs/SMART_SPACE.md)
+- [Input-method switching](./docs/INPUT_METHOD_SWITCHING.md)
+- [Testing and acceptance](./docs/TESTING.md)
+
+## Acknowledgements
+
+SmartType continues the work of the original [SwiftType](https://github.com/mgxv/SwiftType) project and its contributors. It is built on Apple's AppKit, InputMethodKit, and system spell-checking technologies.
+
+<div align="center">
+  <strong>Quietly helpful. Deliberately local. Always your choice.</strong>
+</div>

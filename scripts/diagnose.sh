@@ -22,7 +22,7 @@ print_plist_value() {
     printf '%-28s %s\n' "${label}:" "${value:-missing}"
 }
 
-printf 'SwiftType read-only diagnostic summary\n'
+printf 'SmartType read-only diagnostic summary\n'
 printf '%s\n' '====================================='
 printf 'This command does not modify input sources, services, or registrations.\n\n'
 

@@ -50,6 +50,6 @@ killall TextInputMenuAgent 2>/dev/null || true
 killall TextInputSwitcher 2>/dev/null || true
 codesign --verify --deep --strict "${DESTINATION}"
 
-printf 'SwiftType installed to %s\n' "${DESTINATION}"
-printf 'Add it once in System Settings > Keyboard > Text Input, then log out and back in.\n'
-printf 'Quit and reopen apps that were running during this install so they reconnect to SwiftType.\n'
+printf 'SmartType installed to %s\n' "${DESTINATION}"
+printf 'Add SmartType once in System Settings > Keyboard > Text Input, then log out and back in.\n'
+printf 'Quit and reopen apps that were running during this install so they reconnect to SmartType.\n'

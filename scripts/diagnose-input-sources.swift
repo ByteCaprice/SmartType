@@ -39,11 +39,11 @@ if arguments == ["--help"] {
     exit(2)
 }
 
-print("SwiftType read-only input-source diagnostic")
+print("SmartType read-only input-source diagnostic")
 print("No input sources, preferences, registrations, or services are changed.")
 print("Only source identifiers, capabilities, and notification times are reported; no keystrokes or text.")
 print("The English-language lookup is NOT a guaranteed Caps Lock destination.")
-print("An underlying US/ABC keyboard layout does not mean SwiftType was deselected.\n")
+print("An underlying US/ABC keyboard layout does not mean SmartType was deselected.\n")
 
 let filter = [kTISPropertyInputSourceCategory as String: kTISCategoryKeyboardInputSource!,
               kTISPropertyInputSourceIsSelectCapable as String: kCFBooleanTrue!] as CFDictionary

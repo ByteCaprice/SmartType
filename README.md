@@ -38,8 +38,8 @@ Check the repository's [Releases](https://github.com/ByteCaprice/SmartType/relea
 ### Enable the input source
 
 1. Open **System Settings → Keyboard → Text Input → Edit → +** (labels vary by macOS version).
-2. Add the installed **SwiftType** input source. SmartType is the project name; the technical app and input-source names remain SwiftType for compatibility.
-3. Select that source from the input menu and start typing in a supported text field.
+2. Add the installed **SmartType** input source. The underlying app bundle, target, and bundle identifier retain the `SwiftType` technical name for compatibility.
+3. Select SmartType from the input menu and start typing in a supported text field.
 
 After an update, fully quit and reopen affected apps so they reconnect. A restart is not normally needed. If the input source is missing or sessions will not reconnect, log out and back in after saving your work.
 

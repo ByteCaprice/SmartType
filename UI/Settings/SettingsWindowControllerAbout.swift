@@ -35,7 +35,7 @@ extension SettingsWindowController {
         iconView.heightAnchor.constraint(equalToConstant: 72).isActive = true
         stack.addArrangedSubview(iconView)
 
-        let titleLabel = NSTextField(labelWithString: "SwiftType")
+        let titleLabel = NSTextField(labelWithString: "SmartType")
         titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
         stack.addArrangedSubview(titleLabel)
 
@@ -46,7 +46,7 @@ extension SettingsWindowController {
 
         container.addSubview(stack)
 
-        let uninstallButton = NSButton(title: "Uninstall SwiftType\u{2026}", target: self, action: #selector(uninstallButtonClicked))
+        let uninstallButton = NSButton(title: "Uninstall SmartType\u{2026}", target: self, action: #selector(uninstallButtonClicked))
         uninstallButton.bezelStyle = .push
         uninstallButton.contentTintColor = .systemRed
         uninstallButton.translatesAutoresizingMaskIntoConstraints = false
@@ -71,9 +71,9 @@ extension SettingsWindowController {
 
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "Uninstall SwiftType?"
-        alert.informativeText = "This removes the SwiftType app, but does not change your configured input sources or preferences. "
-            + "Switch to another input source first; afterward, remove SwiftType in System Settings and log out if it still appears."
+        alert.messageText = "Uninstall SmartType?"
+        alert.informativeText = "This removes the SmartType app, but does not change your configured input sources or preferences. "
+            + "Switch to another input source first; afterward, remove SmartType in System Settings and log out if it still appears."
 
         let uninstallButton = alert.addButton(withTitle: "Uninstall")
         uninstallButton.hasDestructiveAction = true
@@ -98,23 +98,23 @@ extension SettingsWindowController {
         if result.succeeded {
             Log.settings.info("Uninstall completed successfully")
             alert.alertStyle = .informational
-            alert.messageText = "SwiftType Removed"
-            alert.informativeText = "Switch to another input source, remove SwiftType from System Settings → Keyboard → Text Input, "
+            alert.messageText = "SmartType Removed"
+            alert.informativeText = "Switch to another input source, remove SmartType from System Settings → Keyboard → Text Input, "
                 + "then log out if it still appears. Your preferences were preserved."
-            alert.addButton(withTitle: "Quit SwiftType")
+            alert.addButton(withTitle: "Quit SmartType")
             alert.runModal()
             NSApp.terminate(nil)
         } else {
             Log.settings.error("Uninstall finished with removal failures")
             alert.alertStyle = .critical
-            alert.messageText = "SwiftType Couldn’t Be Completely Removed"
+            alert.messageText = "SmartType Couldn’t Be Completely Removed"
             if result.appBundleRemovalAttempted {
                 alert.informativeText = result.failures.joined(separator: "\n")
-                    + "\n\nSwiftType will quit so it cannot continue running from a partially removed bundle."
-                alert.addButton(withTitle: "Quit SwiftType")
+                    + "\n\nSmartType will quit so it cannot continue running from a partially removed bundle."
+                alert.addButton(withTitle: "Quit SmartType")
             } else {
                 alert.informativeText = result.failures.joined(separator: "\n")
-                    + "\n\nSwiftType will remain open so you can retry or remove the listed item manually."
+                    + "\n\nSmartType will remain open so you can retry or remove the listed item manually."
                 alert.addButton(withTitle: "OK")
             }
             alert.runModal()

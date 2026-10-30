@@ -33,7 +33,7 @@ expect_invalid --watch 1 extra
 expect_invalid --unknown
 
 output=$("${TEST_DIR}/diagnose")
-[[ "${output}" == *"SwiftType read-only input-source diagnostic"* ]]
+[[ "${output}" == *"SmartType read-only input-source diagnostic"* ]]
 [[ "${output}" == *"No input sources, preferences, registrations, or services are changed."* ]]
 [[ "${output}" == *"Current source:"* ]]
 [[ "${output}" == *"Last-used ASCII source:"* ]]

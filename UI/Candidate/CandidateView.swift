@@ -225,7 +225,7 @@ private struct PredictionCellPresentation {
     private func configureAccessibility() {
         setAccessibilityElement(true)
         setAccessibilityRole(.list)
-        setAccessibilityLabel("SwiftType candidates")
+        setAccessibilityLabel("SmartType candidates")
         gridView.setAccessibilityElement(false)
         setAccessibilityRows([])
         setAccessibilityVisibleRows([])
@@ -610,7 +610,7 @@ private struct PredictionCellPresentation {
             spaceHintLabel.stringValue = ""
             spaceHintLabel.isHidden = true
             spaceHintHeightConstraint.constant = 0
-            setAccessibilityLabel("SwiftType candidates")
+            setAccessibilityLabel("SmartType candidates")
             return
         }
 
@@ -627,7 +627,7 @@ private struct PredictionCellPresentation {
         spaceHintText = spaceHintLabel.stringValue
         spaceHintLabel.isHidden = false
         spaceHintHeightConstraint.constant = ceil(numberFont.ascender - numberFont.descender) + 4
-        setAccessibilityLabel("SwiftType candidates. Space keeps current word. \(description)")
+        setAccessibilityLabel("SmartType candidates. Space keeps current word. \(description)")
     }
 
     private func hideCell(_ container: HighlightContainerView) {

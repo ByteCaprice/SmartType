@@ -1,16 +1,16 @@
-# SwiftType Input-Method Switching Guide
+# SmartType Input-Method Switching Guide
 
-This guide documents the switching behavior of the current SwiftType implementation. It is intended for maintainers changing InputMethodKit event handling, per-application routing, input-source metadata, or installation behavior.
+This guide documents the switching behavior of the current SmartType implementation. It is intended for maintainers changing InputMethodKit event handling, per-application routing, input-source metadata, or installation behavior.
 
 The switching foundation has since been extended with Smart Space, targeted client compatibility, and stale-state safeguards. This guide describes the current implementation rather than a historical commit snapshot.
 
 ## 1. What Performs the Switch
 
-SwiftType does not select another input source itself. macOS performs the switch.
+SmartType does not select another input source itself. macOS performs the switch.
 
-SwiftType has only two responsibilities when Caps Lock is pressed:
+SmartType has only two responsibilities when Caps Lock is pressed:
 
-1. Finish or discard any SwiftType composition state that could block switching.
+1. Finish or discard any SmartType composition state that could block switching.
 2. Return `false` from the event handler so the event continues to macOS.
 
 Do not call `TISEnableInputSource`, `TISDisableInputSource`, or `TISSelectInputSource` from the input controller. Programmatically changing the user's input sources creates global state, races with macOS, and does not fix a client that is holding an active marked-text composition.
@@ -19,31 +19,31 @@ Apple documents `TICapsLockLanguageSwitchCapable` as enabling Caps Lock switchin
 
 ## 2. User Setup
 
-The user needs SwiftType and at least one non-Latin input source, such as a Chinese input method.
+The user needs SmartType and at least one non-Latin input source, such as a Chinese input method.
 
 1. Open **System Settings > Keyboard > Text Input > Edit**.
-2. Add **SwiftType** if it is not already present.
-3. Add the non-Latin input source that SwiftType should switch to and from.
+2. Add **SmartType** if it is not already present.
+3. Add the non-Latin input source that SmartType should switch to and from.
 4. Enable **Use the Caps Lock key to switch to and from** the Latin input source. The exact label varies by macOS version.
-5. Select SwiftType from the input menu.
+5. Select SmartType from the input menu.
 6. Test both Caps Lock and the system's normal input-source shortcut, usually `Control-Space`.
 
-If `Control-Space` works but Caps Lock does not, check the Caps Lock preference, SwiftType metadata, and flags-changed event handling. If neither works, investigate installation, registration, or the active host session first.
+If `Control-Space` works but Caps Lock does not, check the Caps Lock preference, SmartType metadata, and flags-changed event handling. If neither works, investigate installation, registration, or the active host session first.
 
 ### Caps Lock sometimes returns to ABC
 
-Caps Lock does not have a fixed app-controlled “default English input method.” Apple describes its Latin destination as the **last-used Latin input source**. ABC and SwiftType are both Latin sources, so selecting ABC, or entering a field that changes the input source, can affect subsequent switching. The destination is selected by macOS, not by SwiftType while Pinyin is active.
+Caps Lock does not have a fixed app-controlled “default English input method.” Apple describes its Latin destination as the **last-used Latin input source**. ABC and SmartType are both Latin sources, so selecting ABC, or entering a field that changes the input source, can affect subsequent switching. The destination is selected by macOS, not by SmartType while Pinyin is active.
 
 1. Finish the current composition and open a normal, non-password field in TextEdit.
-2. Select **SwiftType** explicitly from the input menu, then select **Pinyin**.
+2. Select **SmartType** explicitly from the input menu, then select **Pinyin**.
 3. Tap and release Caps Lock, checking the actual input-menu selection after each switch. Holding Caps Lock also has a capitalization function; the app cannot remove the system's key timing.
 4. Compare with **Control-Space**, which selects the last-used source. **Control-Option-Space** selects the next source; Globe/Fn configured to change input source can cycle through all enabled sources, including ABC.
 5. In Keyboard > Text Input > Edit, check the displayed Caps Lock destination and **Automatically switch to a document's input source**. If enabled, temporarily turning the document option off manually can help isolate per-document switching. Remember its previous value.
-6. If ABC is not wanted in regular switching, inspect whether System Settings allows removing it while retaining SwiftType and Pinyin. Do not force removal by editing HIToolbox preferences or disabling the last system keyboard layout. Secure fields may still require a system layout.
+6. If ABC is not wanted in regular switching, inspect whether System Settings allows removing it while retaining SmartType and Pinyin. Do not force removal by editing HIToolbox preferences or disabling the last system keyboard layout. Secure fields may still require a system layout.
 
-These steps are a diagnostic/setup procedure, not a guarantee that macOS will always choose SwiftType. Do not add a global ABC-to-SwiftType redirect, keyboard event tap, private preference override, or automatic source selection to the controller as a workaround.
+These steps are a diagnostic/setup procedure, not a guarantee that macOS will always choose SmartType. Do not add a global ABC-to-SmartType redirect, keyboard event tap, private preference override, or automatic source selection to the controller as a workaround.
 
-The read-only diagnostic below distinguishes the **selected input source** from its **underlying keyboard layout**. SwiftType intentionally uses a US layout for key interpretation; seeing US there does not mean macOS switched away from SwiftType. Likewise, `TISCopyInputSourceForLanguage("en")` is an English-language lookup, not a documented Caps Lock destination API.
+The read-only diagnostic below distinguishes the **selected input source** from its **underlying keyboard layout**. SmartType intentionally uses a US layout for key interpretation; seeing US there does not mean macOS switched away from SmartType. Likewise, `TISCopyInputSourceForLanguage("en")` is an English-language lookup, not a documented Caps Lock destination API.
 
 ## 3. Required Bundle Metadata
 
@@ -66,7 +66,7 @@ The following values in [`Info.plist`](../Info.plist) are part of the switching 
 <string>InputController</string>
 ```
 
-These values tell macOS that SwiftType is a Latin input source, supports Caps Lock language switching, and exposes the expected InputMethodKit connection and controller.
+These values tell macOS that SmartType is a Latin input source, supports Caps Lock language switching, and exposes the expected InputMethodKit connection and controller.
 
 Do not remove or rename these keys as an application-specific workaround. [`Tests/App/ConstantsTests.swift`](../Tests/App/ConstantsTests.swift) protects `TICapsLockLanguageSwitchCapable`, `TISInputSourceID`, and `TISIntendedLanguage`; the connection, controller, and repertoire keys still require code-review verification.
 
@@ -102,7 +102,7 @@ Both parts are mandatory:
 | Requirement | Failure when removed |
 |---|---|
 | Include `.flagsChanged` in `recognizedEvents(_:)` | The controller does not receive Caps Lock flags-changed events; switching commonly appears stuck during composition. |
-| Return `false` for Caps Lock | SwiftType consumes the event and macOS cannot perform the switch. |
+| Return `false` for Caps Lock | SmartType consumes the event and macOS cannot perform the switch. |
 | Avoid client-policy IPC when no composition exists | A busy special client can delay an otherwise immediate system switch. |
 | Resolve client policy only once for an active composition | Duplicate synchronous client calls add avoidable latency to the switch path. |
 | Finish inline marked text before returning | Some clients defer switching while a marked range remains active. |
@@ -116,7 +116,7 @@ The Caps Lock path must avoid unnecessary synchronous calls into the host proces
 
 ### Inline mode
 
-TextEdit, Spotlight, Safari, Xcode, Edge, and most applications use inline mode. SwiftType owns an active marked-text composition in this mode.
+TextEdit, Spotlight, Safari, Xcode, Edge, and most applications use inline mode. SmartType owns an active marked-text composition in this mode.
 
 When Caps Lock is received, `commitCompositionForLanguageSwitch(client:)` performs this order:
 
@@ -127,7 +127,7 @@ When Caps Lock is received, `commitCompositionForLanguageSwitch(client:)` perfor
 
 The order matters. Inserting first can leave a marked range alive briefly in some clients, which can delay or prevent the switch.
 
-`deactivateServer(_:)` is the safety net. When macOS ends the SwiftType session, it commits an unfinished inline composition and hides the candidate window. It must not replace the Caps Lock event path because deactivation happens only after macOS has decided to switch.
+`deactivateServer(_:)` is the safety net. When macOS ends the SmartType session, it commits an unfinished inline composition and hides the candidate window. It must not replace the Caps Lock event path because deactivation happens only after macOS has decided to switch.
 
 ### Transparent-prediction mode
 
@@ -135,7 +135,7 @@ Chrome, Brave, Chromium, Arc, Opera, Vivaldi, WeCom, and DingTalk use transparen
 
 The invariant is:
 
-> The client owns the typed text. SwiftType owns only a mirror used to calculate predictions.
+> The client owns the typed text. SmartType owns only a mirror used to calculate predictions.
 
 Therefore transparent mode must:
 
@@ -151,9 +151,9 @@ Adding normal inline marked text to transparent mode commonly recreates the orig
 
 ### Direct-input and passthrough modes
 
-Native terminal applications use passthrough mode. SwiftType returns `false` without starting composition so shell line editors and raw-mode applications receive keys unchanged.
+Native terminal applications use passthrough mode. SmartType returns `false` without starting composition so shell line editors and raw-mode applications receive keys unchanged.
 
-VS Code uses no-prediction direct-input mode. Live testing found that Monaco drops printable IMK events returned as unhandled even though the integrated terminal accepts them. SwiftType therefore commits unmodified printable characters through a synchronous temporary marked phase, while Command/Control/Option combinations, Backspace, arrows, Tab, Escape, and Return still pass through. The same bundle ID serves both surfaces, so real-client regression testing must cover both.
+VS Code uses no-prediction direct-input mode. Live testing found that Monaco drops printable IMK events returned as unhandled even though the integrated terminal accepts them. SmartType therefore commits unmodified printable characters through a synchronous temporary marked phase, while Command/Control/Option combinations, Backspace, arrows, Tab, Escape, and Return still pass through. The same bundle ID serves both surfaces, so real-client regression testing must cover both.
 
 Do not remove native terminal applications from passthrough merely to make candidates appear. That can break terminal editing and is unrelated to input-source switching.
 
@@ -162,7 +162,7 @@ Do not remove native terminal applications from passthrough merely to make candi
 [`Input/InputClientPolicy.swift`](../Input/InputClientPolicy.swift) resolves modes in this order:
 
 1. Missing bundle identifier: inline.
-2. SwiftType's own process: passthrough.
+2. SmartType's own process: passthrough.
 3. Microsoft Edge and `com.microsoft.edgemac.*`: inline.
 4. VS Code: direct input.
 5. Known native terminals: passthrough.
@@ -183,7 +183,7 @@ Three UserDefaults arrays provide a no-rebuild recovery path. Entries match an e
 | Key | Use |
 | --- | --- |
 | `transparentPredictionBundleIdentifiers` | Preserve Smart Space while avoiding persistent inline composition; configured entries also receive direct-commit priming. |
-| `directInputBundleIdentifiers` | Disable composition/candidates and reliably commit printable text while leaving commands host-owned. This overrides built-in terminal passthrough except for SwiftType itself. |
+| `directInputBundleIdentifiers` | Disable composition/candidates and reliably commit printable text while leaving commands host-owned. This overrides built-in terminal passthrough except for SmartType itself. |
 | `markedTextPrimingBundleIdentifiers` | Keep the existing mode but temporarily mark direct commits before inserting them. |
 
 Only add an application to transparent prediction after reproducing a client failure and after testing insertion, correction, Space, Return, Backspace, and candidate selection. Use direct input as the conservative recovery when an app mixes terminal/editor surfaces or predictions are unsafe. Edge remains inline even if configured in these arrays.
@@ -195,7 +195,7 @@ Before changing switching behavior:
 1. Reproduce the issue in a newly opened host application.
 2. Record whether the issue affects TextEdit and Spotlight, only Chromium clients, or every application.
 3. Confirm whether `Control-Space` still switches input sources.
-4. Confirm which SwiftType binary is running.
+4. Confirm which SmartType binary is running.
 5. Capture the InputController log while pressing Caps Lock.
 6. Change the smallest applicable policy or lifecycle path.
 7. Run automated tests and the real-application matrix below.
@@ -217,7 +217,7 @@ codesign --verify --deep --strict --verbose=2 \
 pgrep -fl 'SwiftType.app/Contents/MacOS/SwiftType'
 ```
 
-The running executable must come from `~/Library/Input Methods/SwiftType.app`. A process that started before installation may still represent the previous build.
+The running executable must come from `~/Library/Input Methods/SwiftType.app`. The technical executable remains named `SwiftType`; a process that started before installation may still represent the previous build.
 
 Check for a second system-wide installation:
 
@@ -227,7 +227,7 @@ ls -ld \
   "/Library/Input Methods/SwiftType.app"
 ```
 
-There should not be competing SwiftType bundles with the same bundle identifier. Do not delete anything until the active path and intended installation are confirmed.
+There should not be competing SmartType installations using the same technical bundle identifier. Do not delete anything until the active path and intended installation are confirmed.
 
 ### Observe the actual source changes
 
@@ -240,7 +240,7 @@ xcrun swift scripts/diagnose-input-sources.swift --watch 60
 
 During the watch, manually reproduce in TextEdit and note which tap felt slow or selected ABC. The script observes only public Text Input Source notifications and reads source identifiers/capabilities. It does **not** read keystrokes, document contents, or clipboard data; change preferences; select/enable/disable sources; or restart services. Ctrl-C stops it early; the maximum duration is 300 seconds.
 
-Notifications identify a source change, not what caused it. Their timestamps alone do not measure physical Caps Lock latency. Compare the selected source with the controller logs below. A Pinyin-to-ABC change with no SwiftType session is not evidence of a stuck SwiftType composition. An enabled-source preference readout is also not authoritative: live TIS registration can report SwiftType enabled even when the readable HIToolbox list omits it.
+Notifications identify a source change, not what caused it. Their timestamps alone do not measure physical Caps Lock latency. Compare the selected source with the controller logs below. A Pinyin-to-ABC change with no SmartType session is not evidence of a stuck SmartType composition. An enabled-source preference readout is also not authoritative: live TIS registration can report SmartType enabled even when the readable HIToolbox list omits it.
 
 ### Observe Caps Lock delivery
 
@@ -274,7 +274,7 @@ Interpret the result as follows:
 After rebuilding with `./scripts/install.sh`:
 
 1. Fully quit affected host applications, including TextEdit or the application containing the failing field.
-2. Reopen them and select SwiftType again.
+2. Reopen them and select SmartType again.
 3. If source metadata or menu entries remain stale, log out and back in.
 4. Recheck the running executable path and build version.
 
@@ -296,8 +296,8 @@ Run this matrix after any change to `Info.plist`, event handling, composition li
 | Installed Electron clients | Inline unless configured | Test ChatGPT, Claude, Cherry Studio, OpenCode, and OpenChamber editors/chat fields | Text appears while typing; no dropped or duplicated input; switching works. |
 | Installed CEF clients | Configured or inline | Test WeCom, DingTalk, and NeteaseMusic text fields | Text appears once; configured candidates work; switching leaves no mark. |
 | Termius | Passthrough unless configured | Test terminal and settings/search fields | Both surfaces accept text and terminal shortcuts remain unchanged. |
-| Any supported app | Its configured mode | Switch away with `Control-Space` | SwiftType deactivates cleanly without losing or duplicating text. |
-| Any supported app | Its configured mode | Switch back to SwiftType | A new session starts with empty composition state. |
+| Any supported app | Its configured mode | Switch away with `Control-Space` | SmartType deactivates cleanly without losing or duplicating text. |
+| Any supported app | Its configured mode | Switch back to SmartType | A new session starts with empty composition state. |
 
 Test switching both before typing and during an active word. Testing only an empty field does not exercise the composition bug.
 
@@ -357,4 +357,4 @@ Reject or revise a switching-related change if any answer is "no":
 - [Apple: TICapsLockLanguageSwitchCapable](https://developer.apple.com/documentation/bundleresources/information-property-list/ticapslocklanguageswitchcapable)
 - [Apple: NSEvent.EventTypeMask.flagsChanged](https://developer.apple.com/documentation/appkit/nsevent/eventtypemask/flagschanged)
 
-The Apple capability documentation establishes the system-level Caps Lock behavior. SwiftType's event, composition, and per-client rules above are project-specific compatibility requirements derived from the current implementation and regression tests.
+The Apple capability documentation establishes the system-level Caps Lock behavior. SmartType's event, composition, and per-client rules above are project-specific compatibility requirements derived from the current implementation and regression tests.

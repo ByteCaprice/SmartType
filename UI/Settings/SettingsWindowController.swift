@@ -80,7 +80,7 @@ import AppKit
             backing: .buffered,
             defer: false,
         )
-        window.title = "SwiftType Settings"
+        window.title = "SmartType Settings"
         window.toolbarStyle = .unified
         window.tabbingMode = .disallowed
         window.isMovableByWindowBackground = true

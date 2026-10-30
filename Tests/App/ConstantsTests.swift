@@ -30,6 +30,14 @@ import XCTest
         let bundle = Bundle(for: InputController.self)
 
         XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
+            "SmartType"
+        )
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "CFBundleName") as? String,
+            "SmartType"
+        )
+        XCTAssertEqual(
             bundle.object(forInfoDictionaryKey: "TICapsLockLanguageSwitchCapable") as? Bool,
             true
         )

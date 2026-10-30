@@ -11,7 +11,7 @@ before=$(/usr/bin/find "${TEST_HOME}" -mindepth 1 -print)
 output=$(HOME="${TEST_HOME}" "${PROJECT_DIR}/scripts/diagnose.sh")
 after=$(/usr/bin/find "${TEST_HOME}" -mindepth 1 -print)
 
-[[ "${output}" == *"SwiftType read-only diagnostic summary"* ]]
+[[ "${output}" == *"SmartType read-only diagnostic summary"* ]]
 [[ "${output}" == *"Installed bundle:            missing"* ]]
 [[ "${output}" == *"This command does not modify input sources, services, or registrations."* ]]
 [[ "${before}" == "${after}" ]]

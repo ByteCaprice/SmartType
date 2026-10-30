@@ -9,16 +9,16 @@ swifttype_validate_bundle() {
     local identifier
 
     [[ -d "${bundle}" && ! -L "${bundle}" ]] || {
-        printf 'ERROR: SwiftType bundle is missing or is a symlink: %s\n' "${bundle}" >&2
+        printf 'ERROR: SmartType bundle is missing or is a symlink: %s\n' "${bundle}" >&2
         return 1
     }
     [[ -x "${bundle}/Contents/MacOS/SwiftType" ]] || {
-        printf 'ERROR: SwiftType executable is missing from: %s\n' "${bundle}" >&2
+        printf 'ERROR: SmartType executable is missing from: %s\n' "${bundle}" >&2
         return 1
     }
     identifier=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
         "${bundle}/Contents/Info.plist" 2>/dev/null) || {
-        printf 'ERROR: SwiftType bundle metadata is unreadable: %s\n' "${bundle}" >&2
+        printf 'ERROR: SmartType bundle metadata is unreadable: %s\n' "${bundle}" >&2
         return 1
     }
     [[ "${identifier}" == "${expected_identifier}" ]] || {
@@ -26,7 +26,7 @@ swifttype_validate_bundle() {
         return 1
     }
     /usr/bin/codesign --verify --deep --strict "${bundle}" || {
-        printf 'ERROR: SwiftType signature verification failed: %s\n' "${bundle}" >&2
+        printf 'ERROR: SmartType signature verification failed: %s\n' "${bundle}" >&2
         return 1
     }
 }
@@ -81,7 +81,7 @@ swifttype_transactional_install() (
                 printf 'ERROR: Installation failed and cleanup was incomplete; inspect %s before retrying.\n' \
                     "${destination}" >&2
             else
-                printf 'ERROR: Installation failed; the previous SwiftType installation was preserved.\n' >&2
+                printf 'ERROR: Installation failed; the previous SmartType installation was preserved.\n' >&2
             fi
         fi
         exit "${status}"
@@ -108,6 +108,6 @@ swifttype_transactional_install() (
     swap_complete=0
     trap - EXIT HUP INT TERM
     /bin/rm -rf "${backup}" "${work_dir}" || {
-        printf 'WARNING: SwiftType was installed, but temporary backup cleanup failed.\n' >&2
+        printf 'WARNING: SmartType was installed, but temporary backup cleanup failed.\n' >&2
     }
 )

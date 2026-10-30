@@ -46,7 +46,7 @@ Policy precedence is:
 | Inline | TextEdit, Safari, Xcode, Edge | Marked composition, synchronous predictions, full candidate navigation |
 | Transparent prediction | Chrome, Brave, Vivaldi, Opera, WeCom, DingTalk | Text is committed immediately; local mirror supports safe predictions without persistent marked text |
 | Direct input | VS Code | Printable text uses a compatibility commit; no candidates; commands remain host-owned |
-| Passthrough | Terminal, iTerm2, Ghostty and other terminal families | SwiftType does not intercept typing or show candidates |
+| Passthrough | Terminal, iTerm2, Ghostty and other terminal families | SmartType does not intercept typing or show candidates |
 
 Runtime recovery arrays in the `com.matthew.inputmethod.SwiftType` defaults domain are:
 
@@ -60,13 +60,13 @@ Entries match exact bundle IDs or dotted helper descendants. These are targeted 
 
 ### Inline mode
 
-SwiftType owns the uncommitted text. Letters update `compositionBuffer`, marked text, predictions, and the candidate panel. A commit inserts the literal or selected candidate exactly once and clears local state.
+SmartType owns the uncommitted text. Letters update `compositionBuffer`, marked text, predictions, and the candidate panel. A commit inserts the literal or selected candidate exactly once and clears local state.
 
-During a language switch, SwiftType clears the marked range before inserting the pending literal, then returns the event to macOS. See [Input-method switching](INPUT_METHOD_SWITCHING.md).
+During a language switch, SmartType clears the marked range before inserting the pending literal, then returns the event to macOS. See [Input-method switching](INPUT_METHOD_SWITCHING.md).
 
 ### Transparent mode
 
-The host already owns every typed character. SwiftType owns only a mirror used for prediction.
+The host already owns every typed character. SmartType owns only a mirror used for prediction.
 
 Therefore:
 

@@ -19,7 +19,7 @@ fi
 
 LOGGED_IN_USER=$(/usr/bin/stat -f %Su /dev/console 2>/dev/null || true)
 if [[ -z "${LOGGED_IN_USER}" || "${LOGGED_IN_USER}" == "root" ]]; then
-    printf 'ERROR: No logged-in GUI user was found. Sign in and run the SwiftType installer again.\n' >&2
+    printf 'ERROR: No logged-in GUI user was found. Sign in and run the SmartType installer again.\n' >&2
     exit 1
 fi
 
@@ -70,5 +70,5 @@ else
     printf 'WARNING: %s exists and is not a symlink; it was left unchanged.\n' "${APPLICATIONS_LINK}" >&2
 fi
 
-printf 'SwiftType installed to: %s\n' "${DESTINATION}"
-printf 'Log out and back in if existing applications cannot connect to SwiftType.\n'
+printf 'SmartType installed to: %s\n' "${DESTINATION}"
+printf 'Log out and back in if existing applications cannot connect to SmartType.\n'

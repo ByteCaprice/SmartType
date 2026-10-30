@@ -124,7 +124,7 @@ Check both Vertical List and Grid:
 
 ## Privacy-preserving latency measurement
 
-Use Instruments with the **Points of Interest** template and attach to the installed SwiftType process. Available operations include:
+Use Instruments with the **Points of Interest** template and attach to the installed SmartType process (the technical executable remains named `SwiftType`). Available operations include:
 
 - `Key handling`
 - `Prediction update`

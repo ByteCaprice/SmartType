@@ -1,6 +1,6 @@
 # SmartType Documentation
 
-SmartType is the public project name. The macOS application, Xcode targets, bundle identifiers, and technical filenames retain the `SwiftType` name for compatibility.
+SmartType is the user-visible project and application name. The app bundle, executable, Xcode targets, bundle identifiers, settings domain, and technical filenames retain the `SwiftType` name for compatibility.
 
 ## Current documentation
 
